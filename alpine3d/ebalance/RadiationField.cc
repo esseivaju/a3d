@@ -96,9 +96,9 @@ void RadiationField::setStations(const std::vector<mio::MeteoData>& vecMeteo, co
 		                                  && (vecMeteo[ii](mio::MeteoData::TA)!=mio::IOUtils::nodata)
 		                                  && (vecMeteo[ii](mio::MeteoData::RH)!=mio::IOUtils::nodata);
 		if (has_meta && has_meteo) {
-			const bool in_grid = albedo.gridify(location);
+			//const bool in_grid = albedo.gridify(location);
 
-			double local_albedo( domain_alb );
+			//double local_albedo( domain_alb );
 			// if (!in_grid) {
 			// 	const double HS = vecMeteo[ii](mio::MeteoData::HS);
 			// 	if (HS!=mio::IOUtils::nodata) //no big deal if we can not adapt the albedo
@@ -111,7 +111,7 @@ void RadiationField::setStations(const std::vector<mio::MeteoData>& vecMeteo, co
 			// 		local_albedo = tmp_albedo;
 			// }
 
-			Sun.calculateRadiation(vecMeteo[ii](mio::MeteoData::TA), vecMeteo[ii](mio::MeteoData::RH), vecMeteo[ii](mio::MeteoData::P), local_albedo);
+			Sun.calculateRadiation(vecMeteo[ii](mio::MeteoData::TA), vecMeteo[ii](mio::MeteoData::RH), vecMeteo[ii](mio::MeteoData::P), domain_alb);
 			bool local_day, local_night;
 			double Md;
       const double ISWR_meas = vecMeteo[ii](mio::MeteoData::ISWR);
