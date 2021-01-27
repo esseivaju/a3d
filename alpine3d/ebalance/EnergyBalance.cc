@@ -26,7 +26,7 @@ EnergyBalance::EnergyBalance(const unsigned int& i_nbworkers, const mio::Config&
               : snowpack(NULL), terrain_radiation(NULL), radfields(), dem(dem_in), vecMeteo(),  dimx(dem_in.getNx()),
                 dimy(dem_in.getNy()), albedo(dem, 0.), direct_unshaded_horizontal(dimx, dimy, 0.),
                 direct(dimx, dimy, 0.), diffuse(dimx, dimy, 0.), reflected(dimx, dimy, 0.), timer(),
-                nbworkers(i_nbworkers), pv_points(), PVP(nullptr), cfg(cfg_in)
+                nbworkers(i_nbworkers), cfg(cfg_in)
 {
 
 	MPIControl& instance = MPIControl::instance();
@@ -38,46 +38,18 @@ EnergyBalance::EnergyBalance(const unsigned int& i_nbworkers, const mio::Config&
 		size_t thread_startx, thread_nx;
 		OMPControl::getArraySliceParams(nx, nbworkers, ii, thread_startx, thread_nx);
 		const size_t offset = startx + thread_startx;
-		std::cout << "[i] EnergyBalance worker " << ii << " on process " << instance.rank() << " will start at offset " << offset << " with nx " << thread_nx << "\n";
+		std::cout << "[i] EnergyBalance worker " << ii << " on process " << instance.rank() << " will start at offset " <<
+		offset << " with nx " << thread_nx << "\n";
 		radfields.push_back(RadiationField(dem_in, offset, thread_nx));
 	}
 
-	if (instance.master())
-		std::cout << "[i] EnergyBalance initialized a total of " << instance.size() << " process(es) with " << nbworkers << " worker(s) each\n";
-
-	if (cfg.keyExists("PVPFILE", "EBalance"))
-	{
-		//load PVP data
-		readPVP();
-		//performs some validation on loaded data
-		std::vector<Coords> co_vec;
-		for (size_t ii = 0; ii < pv_points.size(); ii++)
-		{
-			Coords point;
-			point.setXY(pv_points[ii][0], pv_points[ii][1], pv_points[ii][2]);
-			co_vec.push_back(point);
-		}
-		bool master = instance.master();
-		if (!dem.gridify(co_vec, true))
-		{ //keep invalid points
-			if (master)
-				cerr << "[E] Some PVP are invalid or outside the DEM:\n";
-			for (size_t ii = 0; ii < co_vec.size(); ii++)
-				if (!co_vec[ii].indexIsValid() && master)
-					std::cout << "[E] Point " << ii << "\t" << co_vec[ii].toString(Coords::CARTESIAN) << "\n";
-			throw InvalidArgumentException("Invalid PVP, please check in the logs", AT);
-		}
-		else if (master)
-			std::cout << "[i] Using " << pv_points.size() << " PVP\n";
-
-		if(cfg.get("Terrain_Radiation", "EBalance")) PVP= new SolarPanel(cfg, dem, pv_points, &radfields[0]);
-	}
-
+	if (instance.master()) std::cout << "[i] EnergyBalance initialized a total of " << instance.size() <<
+	" process(es) with " << nbworkers << " worker(s) each\n";
 
 	// Every MPI process will have its own copy of terrain_radiation object with full DEM
 	const bool enable_terrain_radiation = cfg.get("Terrain_Radiation", "EBalance");
 	if (enable_terrain_radiation) {
-		terrain_radiation = TerrainRadiationFactory::getAlgorithm(cfg, dem, nbworkers, PVP);
+		terrain_radiation = TerrainRadiationFactory::getAlgorithm(cfg, dem, nbworkers);
 		const std::string algo = terrain_radiation->algo;
 		if (instance.master())
 			std::cout << "[i] Using terrain radiation with model: " << algo << "\n";
@@ -118,10 +90,6 @@ void EnergyBalance::Destroy()
 	if (terrain_radiation) {
 		delete terrain_radiation;
 		terrain_radiation = NULL;
-	}
-	if (PVP) {
-		delete PVP;
-		PVP = nullptr;
 	}
 }
 
@@ -182,10 +150,10 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 	double solarAzimuth, solarElevation;
 	radfields[0].getPositionSun(solarAzimuth, solarElevation);
 
-	if (cfg.keyExists("PVPFILE", "EBalance"))
-	{
-		PVP->setGridRadiation(albedo, direct, diffuse, direct_unshaded_horizontal);
-	}
+	if (hasSP())
+		terrain_radiation->setSP(radfields[0].getDate(), solarAzimuth, solarElevation);
+
+
 
 	mio::Array2D<double> view_factor(dimx, dimy, IOUtils::nodata);
 	if (terrain_radiation) {
@@ -199,9 +167,6 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 		cout << "[i] Ebalance simulation done for " << timestamp.toString(Date::ISO) << "\n";
 
 	if (snowpack) {
-		double solarAzimuth, solarElevation;
-		radfields[0].getPositionSun(solarAzimuth, solarElevation); //we need it only for handing over to snowpack
-
 		mio::Array2D<double> ilwr = in_ilwr.grid2D;
 		mio::Array2D<double> global = direct+diffuse; //otherwise the compiler does not match the types
 
@@ -220,105 +185,10 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 	timer.stop();
 }
 
-void EnergyBalance::setPVP(const mio::Date timestamp){
-
-	if (cfg.keyExists("PVPFILE", "EBalance")) PVP->setPVP(timestamp);
+void EnergyBalance::writeSP(const unsigned int max_steps){
+	if (hasSP()) terrain_radiation->writeSP(max_steps);
 }
 
-void EnergyBalance::writeSumPVP(const unsigned int max_steps){
-
-	if (cfg.keyExists("PVPFILE", "EBalance")) PVP->writeSumPVP(max_steps);
-}
-
-void EnergyBalance::readPVP()
-{
-	const std::string filename = cfg.get("PVPFILE", "EBalance");
-	if (!FileUtils::fileExists(filename))
-	{
-		throw NotFoundException(filename, AT);
-	}
-
-	smet::SMETReader myreader(filename);
-	std::vector<double> vec_data;
-	myreader.read(vec_data);
-	const size_t nr_fields = myreader.get_nr_of_fields();
-	const int epsg = myreader.get_header_intvalue("epsg");
-	const double smet_nodata = myreader.get_header_doublevalue("nodata");
-
-	if (myreader.location_in_data(smet::WGS84) == true)
-	{
-		size_t lat_fd = IOUtils::unodata, lon_fd = IOUtils::unodata, wid_fd = IOUtils::unodata, hig_fd = IOUtils::unodata;
-		size_t alt_fd = IOUtils::unodata, inc_fd = IOUtils::unodata, az_fd = IOUtils::unodata;
-		for (size_t ii = 0; ii < nr_fields; ii++)
-		{
-			const std::string tmp(myreader.get_field_name(ii));
-			if (tmp == "latitude")
-				lat_fd = ii;
-			if (tmp == "longitude")
-				lon_fd = ii;
-			if (tmp == "altitude")
-				alt_fd = ii;
-			if (tmp == "inclination")
-				inc_fd = ii;
-			if (tmp == "azimuth")
-				az_fd = ii;
-			if (tmp == "height")
-				hig_fd = ii;
-			if (tmp == "width")
-				wid_fd = ii;
-		}
-		for (size_t ii = 0; ii < vec_data.size(); ii += nr_fields)
-		{
-			std::vector<double> point;
-			point = {vec_data[ii + lat_fd], vec_data[ii + lon_fd], vec_data[ii + alt_fd], vec_data[ii + inc_fd], vec_data[ii + az_fd], vec_data[ii + hig_fd], vec_data[ii + wid_fd]};
-			pv_points.push_back(point);
-		}
-	}
-	else if (myreader.location_in_data(smet::EPSG) == true)
-	{
-		if (epsg == (int)floor(smet_nodata + 0.1))
-			throw InvalidFormatException("In file \"" + filename + "\", missing EPSG code in header!", AT);
-
-		size_t east_fd = IOUtils::unodata, north_fd = IOUtils::unodata, alt_fd = IOUtils::unodata;
-		size_t inc_fd = IOUtils::unodata, az_fd = IOUtils::unodata, wid_fd = IOUtils::unodata, hig_fd = IOUtils::unodata;
-		for (size_t ii = 0; ii < nr_fields; ii++)
-		{
-			const std::string tmp(myreader.get_field_name(ii));
-			if (tmp == "easting")
-				east_fd = ii;
-			if (tmp == "northing")
-				north_fd = ii;
-			if (tmp == "altitude")
-				alt_fd = ii;
-			if (tmp == "inclination")
-				inc_fd = ii;
-			if (tmp == "azimuth")
-				az_fd = ii;
-			if (tmp == "height")
-				hig_fd = ii;
-			if (tmp == "width")
-				wid_fd = ii;
-		}
-		if ((east_fd == IOUtils::unodata) || (north_fd == IOUtils::unodata) || (alt_fd == IOUtils::unodata))
-			throw InvalidFormatException("File \"" + filename + "\" does not contain all data fields necessary for EPSG coordinates", AT);
-
-		for (size_t ii = 0; ii < vec_data.size(); ii += nr_fields)
-		{
-			Coords coord_temp;
-			coord_temp.setEPSG(epsg);
-			coord_temp.setXY(vec_data[ii + east_fd], vec_data[ii + north_fd], vec_data[ii + alt_fd]);
-
-			std::vector<double> point;
-			//point={coord_temp.getLat(), coord_temp.getLon(), vec_data[ii+alt_fd], vec_data[ii+inc_fd], vec_data[ii+az_fd]};
-			point = {coord_temp.getEasting(), coord_temp.getNorthing(), vec_data[ii + alt_fd], vec_data[ii + inc_fd], vec_data[ii + az_fd], vec_data[ii + hig_fd], vec_data[ii + wid_fd]};
-			pv_points.push_back(point);
-		}
-	}
-	else
-	{
-		throw InvalidFormatException("File \"" + filename + "\" does not contain expected location information in DATA section!", AT);
-	}
-}
 
 double EnergyBalance::getTiming() const
 {

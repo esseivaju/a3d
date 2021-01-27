@@ -66,8 +66,7 @@ class TerrainRadiationComplex : public TerrainRadiationAlgorithm
 {
 
 public:
-	TerrainRadiationComplex(const mio::Config &cfg, const mio::DEMObject &dem_in, const std::string &method,
-                          SolarPanel *PVobject_in);
+	TerrainRadiationComplex(const mio::Config &cfg, const mio::DEMObject &dem_in, const std::string &method);
 	~TerrainRadiationComplex();
 
 	void getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse, mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal, mio::Array2D<double> &view_factor, double solarAzimuth, double solarElevation);
@@ -111,6 +110,11 @@ private:
 	void ProjectVectorToPlane(const Vec3D &vec1, const Vec3D &plane_normal, Vec3D &v_out);
 	double AngleBetween2Vectors(const Vec3D &vec1, const Vec3D &vec2);
 
+	// PVP functions
+	void readSP();
+	void setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation);
+	void writeSP(const unsigned int max_steps);
+
 	// Output functions
 	void PrintProgress(double percentage);
 
@@ -121,7 +125,8 @@ private:
 	const mio::Config &cfg;
 
 	SnowBRDF BRDFobject;
-	SolarPanel *PVobject;
+	SolarPanel SP;
+	std::vector<std::vector<double> > pv_points;
 
 	mio::Array3D<std::vector<double>> SortList;			  // Used for speedup in Terrain Iterations
 	std::vector<Vec3D> BasicSet_Horizontal; // Horizontal Basic Set [MT 2.1.1 Basic Set]

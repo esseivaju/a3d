@@ -37,9 +37,8 @@ inline bool operator_greater(const CellsList& a, const CellsList& b) {
 class TerrainRadiationAlgorithm {
 	public:
 		TerrainRadiationAlgorithm(const std::string& i_algo, size_t nx, size_t ny)
-                             : algo(i_algo),albedo_grid(nx, ny, mio::IOUtils::nodata) {}
-		virtual ~TerrainRadiationAlgorithm();
-		// FELIX: mio::Array2D<double>& direct_unshaded_horizontal
+                             : algo(i_algo), albedo_grid(nx, ny, mio::IOUtils::nodata), _hasSP(false) {}		virtual ~TerrainRadiationAlgorithm();
+		const bool hasSP(){return _hasSP;}
 		virtual void getRadiation(const mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
                               mio::Array2D<double>& terrain, mio::Array2D<double>& direct_unshaded_horizontal,
                               mio::Array2D<double>& view_factor, double solarAzimuth, double solarElevation) = 0;
@@ -47,16 +46,18 @@ class TerrainRadiationAlgorithm {
                           const mio::Array2D<double>& ta, const mio::Array2D<double>& rh,
                           const mio::Array2D<double>& ilwr) = 0;
 		const std::string algo;
-  protected:
-    mio::Array2D<double> albedo_grid;
+		void setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation){};
+		void writeSP(const unsigned int max_steps){};
 
+	protected:
+		mio::Array2D<double> albedo_grid;
+		bool _hasSP;
 };
 
 class TerrainRadiationFactory {
 	public:
 		// FELIX: const RadiationField* radfield
-		static TerrainRadiationAlgorithm* getAlgorithm(const mio::Config& cfg, const mio::DEMObject &dem, const int& nbworkers, SolarPanel* PVPobject);
-
+		static TerrainRadiationAlgorithm* getAlgorithm(const mio::Config& cfg, const mio::DEMObject &dem, const int& nbworkers);
 };
 
 #endif

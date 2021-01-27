@@ -24,15 +24,14 @@
 RadiationField::RadiationField()
               : date(), dem(), dem_band(), direct(), diffuse(), Sun(),
                 vecMeta(), //vecMd(), vecCorr(), vecClearDirect(), vecClearDiffuse(), vecISWRMeas(),
-                vecCDirect(), vecCDiffuse(),
+                vecCDirect(), vecCDiffuse(),timestamp(),
                 dem_mean_altitude(0.), cellsize(0.), dem_dimx(0), band_dimx(0), dimy(0), startx(0),
                 day(true), night(false) {}
 
 RadiationField::RadiationField(const mio::DEMObject& in_dem, const size_t& in_startx, const size_t& in_nx)
               : date(), dem(), dem_band(), direct(), diffuse(), Sun(),
                 vecMeta(), //vecMd(), vecCorr(), vecClearDirect(), vecClearDiffuse(), vecISWRMeas(),
-                vecCDirect(), vecCDiffuse(),
-                dem_mean_altitude(0.), cellsize(0.), dem_dimx(0), band_dimx(0), dimy(0), startx(0),
+                vecCDirect(), vecCDiffuse(),timestamp(),                dem_mean_altitude(0.), cellsize(0.), dem_dimx(0), band_dimx(0), dimy(0), startx(0),
                 day(true), night(false)
 {
 	setDEM(in_dem, in_startx, in_nx);
@@ -86,7 +85,8 @@ void RadiationField::setStations(const std::vector<mio::MeteoData>& vecMeteo, co
 	day = true;
 	night = true;
 	Sun.resetAltitude( dem_mean_altitude ); //it has been reset when computing the cells
-	Sun.setDate(vecMeteo.front().date.getJulian(false), vecMeteo.front().date.getTimeZone()); //we have at least one station
+	timestamp = vecMeteo.front().date;
+	Sun.setDate(timestamp.getJulian(false), vecMeteo.front().date.getTimeZone()); //we have at least one station
 
 	if (domain_alb==mio::IOUtils::nodata)
 			throw mio::IOException("[E] All cells have nodata albedo!! This can happen if all the cells are nodata/undefined in the land use file", AT);
