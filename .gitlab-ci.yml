@@ -1,0 +1,33 @@
+image: gcc:10
+
+stages:
+  - build
+  - test
+
+alpine3d-build:
+  stage: build
+
+  before_script:
+    - apt update && apt -y install make cmake 
+  script:
+    - |
+      A3D_DIR=$(pwd)
+      cd ..
+      #MeteoIO
+      git clone https://github.com/esseivaju/Meteoio.git meteoio && cd meteoio && git checkout 2c6e631
+      cmake . -DCMAKE_BUILD_TYPE=Release && make -j$(nproc) && make install
+      
+
+      #Snowpack
+      git clone https://github.com/esseivaju/Snowpack.git snowpack && cd snowpack
+      cmake3 . -DCMAKE_BUILD_TYPE=Release && make -j$(nproc) && make install
+
+      cd ${A3D_DIR}
+      cmake . -DCMAKE_BUILD_TYPE=Release && make -j$(nproc) && make install
+
+
+# run tests using the binary built before
+test:
+  stage: test
+  script:
+    - echo "test OK"
