@@ -19,11 +19,6 @@
 #include <alpine3d/ebalance/TerrainRadiationSimple.h>
 #include <alpine3d/ebalance/TerrainRadiationHelbig.h>
 #include <alpine3d/ebalance/TerrainRadiationComplex.h>
-#include <alpine3d/ebalance/TerrainRadiation.h>
-
-#ifdef ENABLE_PETSC
-	#include <alpine3d/ebalance/TerrainRadiationPETSc.h>
-#endif
 
 using namespace std;
 using namespace mio;
