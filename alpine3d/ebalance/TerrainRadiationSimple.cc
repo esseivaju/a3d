@@ -22,6 +22,7 @@ using namespace mio;
 
 TerrainRadiationSimple::TerrainRadiationSimple(const mio::Config& i_cfg, const mio::DEMObject& dem_in, const std::string& method)
             : TerrainRadiationAlgorithm(method,dem_in.getNx(), dem_in.getNy()),
+			albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
             alb_spatial_mean(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
             sky_vf(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
             dimx(dem_in.getNx()), dimy(dem_in.getNy()), startx(0), endx(dimx)
@@ -37,9 +38,9 @@ TerrainRadiationSimple::TerrainRadiationSimple(const mio::Config& i_cfg, const m
 
 TerrainRadiationSimple::~TerrainRadiationSimple() {}
 
-void TerrainRadiationSimple::getRadiation(mio::Array2D<double>& direct,
+void TerrainRadiationSimple::getRadiation(const mio::Array2D<double>& direct,
                                           mio::Array2D<double>& diffuse, mio::Array2D<double>& terrain,
-                                          const mio::Array2D<double>& direct_unshaded_horizontal,
+                                        mio::Array2D<double>& direct_unshaded_horizontal,
                                           const mio::Array2D<double>& total_ilwr, mio::Array2D<double>& sky_ilwr,
                                           mio::Array2D<double>& terrain_ilwr,
                                           double solarAzimuth, double solarElevation)

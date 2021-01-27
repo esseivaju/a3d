@@ -147,7 +147,7 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 		radfields[ii].setMeteo(mio::Grid2DObject(in_ta, startx, 0, nx, dimy),
 		                       mio::Grid2DObject(in_rh, startx, 0, nx, dimy),
 		                       mio::Grid2DObject(in_p, startx, 0, nx, dimy),
-		                       albedo);//mio::Grid2DObject(albedo, startx, 0, nx, dimy));
+		                       mio::Grid2DObject(alb_spatial_mean, startx, 0, nx, dimy));
 
 		mio::Array2D<double> band_direct, band_diffuse, band_direct_unshaded_horizontal;
 		radfields[ii].getRadiation(band_direct, band_diffuse, band_direct_unshaded_horizontal);
@@ -170,9 +170,9 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 	terrain_ilwr=0;
 	if (terrain_radiation) {
 		// note: parallelization has to take place inside the TerrainRadiationAlgorithm implementations
-		terrain_radiation->setMeteo(albedo.grid2D, alb_spatial_mean.grid2D, in_ta.grid2D, in_rh.grid2D, in_ilwr.grid2D);
-		terrain_radiation->getRadiation(direct, diffuse, reflected, direct_unshaded_horizontal,
-                                    in_ilwr.grid2D,sky_ilwr,terrain_ilwr, solarAzimuth, solarElevation);
+		terrain_radiation->setMeteo(albedo.grid2D, alb_spatial_mean.grid2D ,in_ta.grid2D, in_rh.grid2D, in_ilwr.grid2D);
+		terrain_radiation->getRadiation(direct, diffuse, reflected, direct_unshaded_horizontal, in_ilwr.grid2D,sky_ilwr,terrain_ilwr,
+                                    solarAzimuth, solarElevation);
 	}
 
 	if (MPIControl::instance().master())

@@ -80,13 +80,13 @@ class TerrainRadiationHelbig : public TerrainRadiationAlgorithm
 public:
 	TerrainRadiationHelbig(const mio::Config &i_cfg, const mio::DEMObject &dem_in, const int &i_nbworkers, const std::string &method);
 
-	virtual void getRadiation(mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
-							  mio::Array2D<double> &terrain, const mio::Array2D<double> &direct_unshaded_horizontal,
+	virtual void getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
+							  mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal,
 							  const mio::Array2D<double> &total_ilwr, mio::Array2D<double> &sky_ilwr,
 							  mio::Array2D<double> &terrain_ilwr, double solarAzimuth, double solarElevation);
-	virtual void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &alb_spatial_mean,
-						  const mio::Array2D<double> &ta,
-						  const mio::Array2D<double> &rh, const mio::Array2D<double> &ilwr);
+	void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &alb_spatial_mean,
+				  const mio::Array2D<double> &ta, const mio::Array2D<double> &rh,
+				  const mio::Array2D<double> &ilwr);
 
 private:
 	mio::DEMObject dem;
@@ -114,11 +114,11 @@ private:
 	mio::Array2D<double> total_diff, tdir, tdiff, sw_t, glob_start, glob_h_isovf, glob_h, t_snowold, total_terrain, tot_ilwr;
 
 	double lw_start_l1;
+	mio::Array2D<double> meteo2d_ilwr;
 
 	ViewFactorsHelbig viewFactorsHelbigObj;
 	ViewFactorsSectors viewSectorFactorsObj;
 	ViewFactorsCluster viewFactorsClusterObj;
-
 	std::vector<CellsList> lwt_byCell;
 
 	void Compute();

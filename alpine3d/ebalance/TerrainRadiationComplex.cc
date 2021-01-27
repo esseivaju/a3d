@@ -29,10 +29,11 @@
 using namespace mio;
 
 TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, const mio::DEMObject &dem_in,
-                                                 const std::string &method)
-  : TerrainRadiationAlgorithm(method, dem_in.getNx(), dem_in.getNy()), dimx(dem_in.getNx()), dimy(dem_in.getNy()),
-    startx(0), endx(dimx), dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), pv_points(),
-    sky_vf(2, mio::Array2D<double>(dimx, dimy, IOUtils::nodata)), sky_vf_mean(dimx, dimy, IOUtils::nodata)
+												 const std::string &method)
+	: TerrainRadiationAlgorithm(method, dem_in.getNx(), dem_in.getNy()), dimx(dem_in.getNx()), dimy(dem_in.getNy()),
+	  startx(0), endx(dimx), dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), pv_points(),
+	  albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
+	  sky_vf(2, mio::Array2D<double>(dimx, dimy, IOUtils::nodata)), sky_vf_mean(dimx, dimy, IOUtils::nodata)
 {
 	// PRECISION PARAMETERS
 	// ####################
@@ -62,19 +63,19 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 		cfg.getValue("Complex_Anisotropy", "Ebalance", if_anisotropy);
 	else
 		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Anisotropy>> set in [Ebalance]. Use default "
-		<< "Complex_Anisotropy = " << if_anisotropy << " .\n";
+				  << "Complex_Anisotropy = " << if_anisotropy << " .\n";
 
 	if (cfg.keyExists("Complex_Multiple", "Ebalance"))
 		cfg.getValue("Complex_Multiple", "Ebalance", if_multiple);
 	else
 		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Multiple>> set in [Ebalance]. Use default "
-		<< "Complex_Multiple = " << if_multiple << " .\n";
+				  << "Complex_Multiple = " << if_multiple << " .\n";
 
 	if (cfg.keyExists("Complex_Write_Viewlist", "Ebalance"))
 		cfg.getValue("Complex_Write_Viewlist", "Ebalance", if_write_view_list);
 	else
 		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Write_Viewlist>> set in [Ebalance]. Use default "
-		<< "Complex_Write_Viewlist = " << if_write_view_list << " .\n";
+				  << "Complex_Write_Viewlist = " << if_write_view_list << " .\n";
 
 	if (cfg.keyExists("Complex_Read_Viewlist", "Ebalance"))
 	{
@@ -83,7 +84,7 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 	}
 	else
 		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Read_Viewlist>> set in [Ebalance]. Use default "
-		<< "Complex_Read_Viewlist = " << if_read_view_list << " .\n";
+				  << "Complex_Read_Viewlist = " << if_read_view_list << " .\n";
 
 	if (cfg.keyExists("PVPFILE", "EBalance"))
 	{
@@ -111,7 +112,7 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 			std::cout << "[i] Using " << pv_points.size() << " PVP\n";
 
 		SP = SolarPanel(cfg, dem, pv_points);
-		_hasSP=true;
+		_hasSP = true;
 	}
 
 	initBasicSetHorizontal();
@@ -142,7 +143,6 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 
 	if (_hasSP)
 		SP.initTerrain(M_epsilon, M_phi); // Link SolarPanel-object to ViewList
-
 }
 
 TerrainRadiationComplex::~TerrainRadiationComplex() {}
@@ -592,11 +592,10 @@ bool TerrainRadiationComplex::ReadViewList()
 * @param[out] -
 *
 */
-void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Array2D<double> &diffuse,
-                                           mio::Array2D<double> &terrain, const mio::Array2D<double>
-                                           &direct_unshaded_horizontal, const mio::Array2D<double>& total_ilwr,
-                                           mio::Array2D<double>& sky_ilwr, mio::Array2D<double>& terrain_ilwr,
-                                           double solarAzimuth, double solarElevation)
+void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
+										   mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal, const mio::Array2D<double> &total_ilwr,
+										   mio::Array2D<double> &sky_ilwr, mio::Array2D<double> &terrain_ilwr,
+										   double solarAzimuth, double solarElevation)
 {
 	MPIControl &mpicontrol = MPIControl::instance();
 
@@ -869,7 +868,8 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 	}
 
 	// If SolarPanel-module is used, send all needed data
-	if (_hasSP){
+	if (_hasSP)
+	{
 		mpicontrol.allreduce_sum(TList_sky_iso);
 		mpicontrol.allreduce_sum(TList_direct);
 		mpicontrol.allreduce_sum(TList_ms_new);
@@ -893,10 +893,10 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 	std::cout << "[i] TerrainRadiationComplex converged in " << number_rounds + 1 << " Full Iteration(s).\n";
 }
 
-void TerrainRadiationComplex::setMeteo(const mio::Array2D<double>& albedo,
-                                      const mio::Array2D<double>& /*alb_spatial_mean*/,
-                                      const mio::Array2D<double>& /*ta*/, const mio::Array2D<double>& /*rh*/,
-                                      const mio::Array2D<double>& /*ilwr*/)
+void TerrainRadiationComplex::setMeteo(const mio::Array2D<double> &albedo,
+									   const mio::Array2D<double> & /*alb_spatial_mean*/,
+									   const mio::Array2D<double> & /*ta*/, const mio::Array2D<double> & /*rh*/,
+									   const mio::Array2D<double> & /*ilwr*/)
 {
 	albedo_grid = albedo;
 }
@@ -1320,7 +1320,6 @@ double TerrainRadiationComplex::AngleBetween2Vectors(const Vec3D &vec1, const Ve
 	return angle;
 }
 
-
 void TerrainRadiationComplex::readSP()
 {
 	const std::string filename = cfg.get("PVPFILE", "EBalance");
@@ -1411,11 +1410,13 @@ void TerrainRadiationComplex::readSP()
 	}
 }
 
-void TerrainRadiationComplex::setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation){
+void TerrainRadiationComplex::setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation)
+{
 	SP.setSP(timestamp, solarAzimuth, solarElevation);
 }
 
-void TerrainRadiationComplex::writeSP(const unsigned int max_steps){
+void TerrainRadiationComplex::writeSP(const unsigned int max_steps)
+{
 	SP.writeSP(max_steps);
 }
 //########################################################################################################################

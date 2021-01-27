@@ -26,9 +26,9 @@
 using namespace mio;
 using namespace std;
 
-TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config &cfg, const mio::DEMObject &dem_in, const int &, const std::string &method)
-	: TerrainRadiationAlgorithm(method, dem_in.getNx(), dem_in.getNy()), dem(dem_in), dimx(dem.getNx()), dimy(dem.getNy()), cellsize(dem.cellsize), viewFactorsHelbigObj(cfg, dem_in),
-	  viewSectorFactorsObj(cfg, dem_in), viewFactorsClusterObj(cfg, dem_in), lwt_byCell(dimx * dimy)
+TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config& cfg, const mio::DEMObject& dem_in, const int&, const std::string& method)
+	: TerrainRadiationAlgorithm(method,dem_in.getNx(), dem_in.getNy()), dem(dem_in), dimx(dem.getNx()), dimy(dem.getNy()), cellsize(dem.cellsize), viewFactorsHelbigObj(cfg, dem_in),
+	  viewSectorFactorsObj(cfg, dem_in), viewFactorsClusterObj(cfg, dem_in), lwt_byCell(dimx*dimy)
 {
 	cfg.getValue("itEps_SW", "EBalance", itEps_SW);
 	cfg.getValue("itEps_LW", "EBalance", itEps_LW);
@@ -65,8 +65,8 @@ TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config &cfg, const mio
 	}
 }
 
-void TerrainRadiationHelbig::getRadiation(mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
-										  mio::Array2D<double> &terrain, const mio::Array2D<double> &direct_unshaded_horizontal, const mio::Array2D<double> &total_ilwr, mio::Array2D<double> &sky_ilwr,
+void TerrainRadiationHelbig::getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
+										  mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal, const mio::Array2D<double> &total_ilwr, mio::Array2D<double> &sky_ilwr,
 										  mio::Array2D<double> &terrain_ilwr,
 										  double solarAzimuth, double solarElevation)
 {
