@@ -36,15 +36,20 @@ inline bool operator_greater(const CellsList& a, const CellsList& b) {
 
 class TerrainRadiationAlgorithm {
 	public:
-		TerrainRadiationAlgorithm(const std::string& i_algo) : algo(i_algo) {}
+		TerrainRadiationAlgorithm(const std::string& i_algo, size_t nx, size_t ny)
+                             : algo(i_algo),albedo_grid(nx, ny, mio::IOUtils::nodata) {}
 		virtual ~TerrainRadiationAlgorithm();
 		// FELIX: mio::Array2D<double>& direct_unshaded_horizontal
 		virtual void getRadiation(const mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
                               mio::Array2D<double>& terrain, mio::Array2D<double>& direct_unshaded_horizontal,
                               mio::Array2D<double>& view_factor, double solarAzimuth, double solarElevation) = 0;
-		virtual void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& ta,
-		                      const mio::Array2D<double>& rh, const mio::Array2D<double>& ilwr) = 0;
+		virtual void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& alb_spatial_mean,
+                          const mio::Array2D<double>& ta, const mio::Array2D<double>& rh,
+                          const mio::Array2D<double>& ilwr) = 0;
 		const std::string algo;
+  protected:
+    mio::Array2D<double> albedo_grid;
+
 };
 
 class TerrainRadiationFactory {

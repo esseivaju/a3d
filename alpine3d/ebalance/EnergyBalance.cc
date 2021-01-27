@@ -22,7 +22,6 @@
 using namespace mio;
 using namespace std;
 
-// FELIX: added pv_pts, pv_points
 EnergyBalance::EnergyBalance(const unsigned int& i_nbworkers, const mio::Config& cfg_in, const mio::DEMObject &dem_in)
               : snowpack(NULL), terrain_radiation(NULL), radfields(), dem(dem_in), vecMeteo(),  dimx(dem_in.getNx()),
                 dimy(dem_in.getNy()), albedo(dem, 0.), direct_unshaded_horizontal(dimx, dimy, 0.),
@@ -156,15 +155,20 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 {
 	timer.restart();
 
+  const double domain_alb = albedo.grid2D.getMean();
+  mio::Grid2DObject alb_spatial_mean{albedo};
+  alb_spatial_mean.compute_spatial_mean(1000);
+
 	#pragma omp parallel for schedule(dynamic)
 	for (size_t ii=0; ii<nbworkers; ii++) {
-		radfields[ii].setStations(vecMeteo, albedo); //calculate the parameters at the radiation stations
+    //calculate the parameters at the radiation stations
+		radfields[ii].setStations(vecMeteo, alb_spatial_mean, domain_alb);
 		size_t startx, nx;
 		radfields[ii].getBandOffsets(startx, nx);
 		radfields[ii].setMeteo(mio::Grid2DObject(in_ta, startx, 0, nx, dimy),
 		                       mio::Grid2DObject(in_rh, startx, 0, nx, dimy),
 		                       mio::Grid2DObject(in_p, startx, 0, nx, dimy),
-		                       albedo);//mio::Grid2DObject(albedo, startx, 0, nx, dimy));
+		                       mio::Grid2DObject(alb_spatial_mean, startx, 0, nx, dimy));
 
 		mio::Array2D<double> band_direct, band_diffuse, band_direct_unshaded_horizontal;
 		radfields[ii].getRadiation(band_direct, band_diffuse, band_direct_unshaded_horizontal);
@@ -186,7 +190,7 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 	mio::Array2D<double> view_factor(dimx, dimy, IOUtils::nodata);
 	if (terrain_radiation) {
 		// note: parallelization has to take place inside the TerrainRadiationAlgorithm implementations
-		terrain_radiation->setMeteo(albedo.grid2D, in_ta.grid2D, in_rh.grid2D, in_ilwr.grid2D);
+		terrain_radiation->setMeteo(albedo.grid2D, alb_spatial_mean.grid2D ,in_ta.grid2D, in_rh.grid2D, in_ilwr.grid2D);
 		terrain_radiation->getRadiation(direct, diffuse, reflected, direct_unshaded_horizontal,view_factor,
                                     solarAzimuth, solarElevation);
 	}

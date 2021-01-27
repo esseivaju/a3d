@@ -71,7 +71,9 @@ public:
 	~TerrainRadiationComplex();
 
 	void getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse, mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal, mio::Array2D<double> &view_factor, double solarAzimuth, double solarElevation);
-	void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &ta, const mio::Array2D<double> &rh, const mio::Array2D<double> &ilwr);
+	void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& alb_spatial_mean,
+                const mio::Array2D<double>& ta, const mio::Array2D<double>& rh,
+                const mio::Array2D<double>& ilwr) ;
 
 private:
 	typedef std::array<double, 3> Vec3D;
@@ -126,7 +128,6 @@ private:
 	mio::Array4D<Vec3D> BasicSet_rotated;	  // Basic Set rotated in Triangular Pixel Plane [MT 2.1.3 View List, eq. 2.38]
 	mio::Array4D<std::vector<double>> ViewList;			  // Stores all information of network between pixels [MT 2.1.3 View List, eq. 2.47]
 	mio::Array2D<double> RList;							  // List pre-storage of BRDF values
-	mio::Array2D<double> albedo_grid;					  // Albedo value for each square Pixel
 
 	mio::Array2D<double> sky_vf_mean;		  // Grid to store view factor
 	std::vector<mio::Array2D<double>> sky_vf; // Array to stor grid of view factor for both values of which_triangle

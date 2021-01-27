@@ -27,7 +27,7 @@ using namespace mio;
 using namespace std;
 
 TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config& cfg, const mio::DEMObject& dem_in, const int&, const std::string& method)
-	: TerrainRadiationAlgorithm(method), dem(dem_in), dimx(dem.getNx()), dimy(dem.getNy()), cellsize(dem.cellsize), viewFactorsHelbigObj(cfg, dem_in),
+	: TerrainRadiationAlgorithm(method,dem_in.getNx(), dem_in.getNy()), dem(dem_in), dimx(dem.getNx()), dimy(dem.getNy()), cellsize(dem.cellsize), viewFactorsHelbigObj(cfg, dem_in),
 	  viewSectorFactorsObj(cfg, dem_in), viewFactorsClusterObj(cfg, dem_in), lwt_byCell(dimx*dimy)
 {
 	double lw_radius;
@@ -83,7 +83,10 @@ void TerrainRadiationHelbig::getSkyViewFactor(mio::Array2D<double> &o_sky_vf) {
 	viewFactorsHelbigObj.getSkyViewFactor(o_sky_vf);
 }
 
-void TerrainRadiationHelbig::setMeteo(const mio::Array2D<double> &albedo,const mio::Array2D<double> &ta,const mio::Array2D<double> &rh,const mio::Array2D<double> &ilwr)
+void TerrainRadiationHelbig::setMeteo(const mio::Array2D<double>& albedo,
+                                      const mio::Array2D<double>& /*alb_spatial_mean*/,
+                                      const mio::Array2D<double>& ta, const mio::Array2D<double>& rh,
+                                      const mio::Array2D<double>& ilwr)
 {
 		meteo2d_ta = ta;
 		meteo2d_rh = rh;

@@ -80,8 +80,9 @@ class TerrainRadiationHelbig: public TerrainRadiationAlgorithm {
 		void getRadiation(const mio::Array2D<double>& direct, mio::Array2D<double>& diffuse, mio::Array2D<double>& terrain,
                       mio::Array2D<double>& direct_unshaded_horizontal, mio::Array2D<double>& view_factor,
                       double solarAzimuth, double solarElevation);
-		void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& ta,
-		              const mio::Array2D<double>& rh, const mio::Array2D<double>& ilwr);
+		void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& alb_spatial_mean,
+                  const mio::Array2D<double>& ta, const mio::Array2D<double>& rh,
+                  const mio::Array2D<double>& ilwr) ;
 
 	private:
 		mio::DEMObject dem;
@@ -120,7 +121,7 @@ class TerrainRadiationHelbig: public TerrainRadiationAlgorithm {
 		//mio::Array2D<double> tdir;
 		//mio::Array2D<double> tdiff;
 
-		mio::Array2D<double> albedo_grid, meteo2d_ilwr;
+		mio::Array2D<double> meteo2d_ilwr;
 
 		std::vector<CellsList> lwt_byCell;
 

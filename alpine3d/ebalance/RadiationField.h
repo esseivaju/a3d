@@ -27,9 +27,10 @@ class RadiationField {
 
 		void setDEM(const mio::DEMObject& in_dem);
 		void setDEM(const mio::DEMObject& in_dem, const size_t& in_startx, const size_t& in_nx);
-		void setStations(const std::vector<mio::MeteoData>& vecMeteo, const mio::Grid2DObject& albedo);
+		void setStations(const std::vector<mio::MeteoData>& vecMeteo, const mio::Grid2DObject& alb_spatial_mean,
+                     const double domain_alb);
 
-		void setMeteo(const mio::Grid2DObject& in_ta, const mio::Grid2DObject& in_rh, const mio::Grid2DObject& in_p, const mio::Grid2DObject& in_albedo);
+		void setMeteo(const mio::Grid2DObject& in_ta, const mio::Grid2DObject& in_rh, const mio::Grid2DObject& in_p, const mio::Grid2DObject& alb_spatial_mean);
 
 		void getPositionSun(double& o_solarAzimuth, double& o_solarElevation) const;
 		void getRadiation(mio::Array2D<double>& o_direct, mio::Array2D<double>& o_diffuse, mio::Array2D<double>& o_direct_unshaded_horizontal) const;
@@ -41,7 +42,7 @@ class RadiationField {
 		mio::Grid2DObject dem_band, direct, diffuse, direct_unshaded_horizontal; // FELIX: direct_unshaded_horizontal;
 		mio::SunObject Sun;
 		std::vector<mio::StationData> vecMeta;
-		std::vector<double> vecMd, vecCorr, vecClearDirect, vecClearDiffuse, vecISWRMeas, vecCDirect, vecCDiffuse;
+		std::vector<double> vecMd, vecCDirect, vecCDiffuse; //vecCorr, vecClearDirect, vecClearDiffuse, vecISWRMeas, vecCDirect, vecCDiffuse;
 		double dem_mean_altitude;
 		double cellsize;
 		size_t dem_dimx, band_dimx, dimy;

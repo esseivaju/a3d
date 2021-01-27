@@ -30,9 +30,8 @@ using namespace mio;
 
 TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, const mio::DEMObject &dem_in,
                                                  const std::string &method, SolarPanel *PVobject_in)
-  : TerrainRadiationAlgorithm(method), dimx(dem_in.getNx()), dimy(dem_in.getNy()), startx(0), endx(dimx),
-    dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), PVobject(PVobject_in),
-    albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
+  : TerrainRadiationAlgorithm(method,dem_in.getNx(), dem_in.getNy()), dimx(dem_in.getNx()), dimy(dem_in.getNy()),
+     startx(0), endx(dimx), dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), PVobject(PVobject_in),
     sky_vf(2, mio::Array2D<double>(dimx, dimy, IOUtils::nodata)), sky_vf_mean(dimx, dimy, IOUtils::nodata)
 {
 	// PRECISION PARAMETERS
@@ -856,7 +855,10 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 	std::cout << "[i] TerrainRadiationComplex converged in " << number_rounds + 1 << " Full Iteration(s).\n";
 }
 
-void TerrainRadiationComplex::setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> & /*ta*/, const mio::Array2D<double> & /*rh*/, const mio::Array2D<double> & /*ilwr*/)
+void TerrainRadiationComplex::setMeteo(const mio::Array2D<double>& albedo,
+                                      const mio::Array2D<double>& /*alb_spatial_mean*/,
+                                      const mio::Array2D<double>& /*ta*/, const mio::Array2D<double>& /*rh*/,
+                                      const mio::Array2D<double>& /*ilwr*/)
 {
 	albedo_grid = albedo;
 }
