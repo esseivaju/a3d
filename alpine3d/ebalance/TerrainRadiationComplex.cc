@@ -29,9 +29,9 @@
 using namespace mio;
 
 TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, const mio::DEMObject &dem_in,
-                                                 const std::string &method, SolarPanel *PVobject_in)
+                                                 const std::string &method)
   : TerrainRadiationAlgorithm(method), dimx(dem_in.getNx()), dimy(dem_in.getNy()), startx(0), endx(dimx),
-    dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), PVobject(PVobject_in),
+    dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), pv_points(),
     albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
     sky_vf(2, mio::Array2D<double>(dimx, dimy, IOUtils::nodata)), sky_vf_mean(dimx, dimy, IOUtils::nodata)
 {
@@ -60,22 +60,58 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 	if (cfg.keyExists("Complex_Anisotropy", "Ebalance"))
 		cfg.getValue("Complex_Anisotropy", "Ebalance", if_anisotropy);
 	else
-		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Anisotropy>> set in [Ebalance]. Use default Complex_Anisotropy = " << if_anisotropy << " .\n";
+		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Anisotropy>> set in [Ebalance]. Use default "
+		<< "Complex_Anisotropy = " << if_anisotropy << " .\n";
+
 	if (cfg.keyExists("Complex_Multiple", "Ebalance"))
 		cfg.getValue("Complex_Multiple", "Ebalance", if_multiple);
 	else
-		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Multiple>> set in [Ebalance]. Use default Complex_Multiple = " << if_multiple << " .\n";
+		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Multiple>> set in [Ebalance]. Use default "
+		<< "Complex_Multiple = " << if_multiple << " .\n";
+
 	if (cfg.keyExists("Complex_Write_Viewlist", "Ebalance"))
 		cfg.getValue("Complex_Write_Viewlist", "Ebalance", if_write_view_list);
 	else
-		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Write_Viewlist>> set in [Ebalance]. Use default Complex_Write_Viewlist = " << if_write_view_list << " .\n";
+		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Write_Viewlist>> set in [Ebalance]. Use default "
+		<< "Complex_Write_Viewlist = " << if_write_view_list << " .\n";
+
 	if (cfg.keyExists("Complex_Read_Viewlist", "Ebalance"))
 	{
 		if (cfg.get("Complex_Read_Viewlist", "EBalance"))
 			if_read_view_list = true;
 	}
 	else
-		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Read_Viewlist>> set in [Ebalance]. Use default Complex_Read_Viewlist = " << if_read_view_list << " .\n";
+		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Read_Viewlist>> set in [Ebalance]. Use default "
+		<< "Complex_Read_Viewlist = " << if_read_view_list << " .\n";
+
+	if (cfg.keyExists("PVPFILE", "EBalance"))
+	{
+		//load PVP data
+		readSP();
+		//performs some validation on loaded data
+		std::vector<Coords> co_vec;
+		for (size_t ii = 0; ii < pv_points.size(); ii++)
+		{
+			Coords point;
+			point.setXY(pv_points[ii][0], pv_points[ii][1], pv_points[ii][2]);
+			co_vec.push_back(point);
+		}
+		bool master = MPIControl::instance().master();
+		if (!dem.gridify(co_vec, true))
+		{ //keep invalid points
+			if (master)
+				std::cerr << "[E] Some PVP are invalid or outside the DEM:\n";
+			for (size_t ii = 0; ii < co_vec.size(); ii++)
+				if (!co_vec[ii].indexIsValid() && master)
+					std::cout << "[E] Point " << ii << "\t" << co_vec[ii].toString(Coords::CARTESIAN) << "\n";
+			throw InvalidArgumentException("Invalid PVP, please check in the logs", AT);
+		}
+		else if (master)
+			std::cout << "[i] Using " << pv_points.size() << " PVP\n";
+
+		SP = SolarPanel(cfg, dem, pv_points);
+		_hasSP=true;
+	}
 
 	// Initialise based on ViewList
 	bool succesful_read = false;
@@ -107,8 +143,8 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 	if (if_write_view_list)
 		WriteViewList(); // Write ViewList to file
 
-	if (cfg_in.keyExists("PVPFILE", "EBalance"))
-		PVobject->initTerrain(M_epsilon, M_phi); // Link SolarPanel-object to ViewList
+	if (_hasSP)
+		SP.initTerrain(M_epsilon, M_phi); // Link SolarPanel-object to ViewList
 
 	bool write_sky_vf = false;
 	cfg.getValue("WRITE_SKY_VIEW_FACTOR", "output", write_sky_vf, IOUtils::nothrow);
@@ -576,6 +612,11 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 {
 	MPIControl &mpicontrol = MPIControl::instance();
 
+	if (_hasSP)
+	{
+		SP.setGridRadiation(albedo_grid, direct, diffuse, direct_unshaded_horizontal, solarAzimuth, solarElevation);
+	}
+
 	// Special T_Lists for Radation analysis
 	mio::Array4D<double> TList_ms_old(dimx, dimy, 2, S, 0), TList_ms_new(dimx, dimy, 2, S, 0); // Total reflected radiance (W/m2/sr)  for all Vectors of basic set and all triangles of DEM
 	mio::Array4D<double> TList_sky_aniso(dimx, dimy, 2, S, 0);								   // Anisotropic single-scattered radiance from sun&sky (W/m2/sr)
@@ -812,21 +853,21 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 
 						Rad_solidangle = Rad_solidangle * albedo_temp / S;
 
-						if (!cfg.keyExists("PVPFILE", "EBalance"))
-							continue;
-
-						if (albedo_temp < 0.5 || !if_anisotropy)
+						if (_hasSP)
 						{
-							for (size_t solidangle_out = 0; solidangle_out < S; ++solidangle_out)
+							if (albedo_temp < 0.5 || !if_anisotropy)
 							{
-								TList_ms_new(ii, jj, which_triangle, solidangle_out) += Rad_solidangle;
+								for (size_t solidangle_out = 0; solidangle_out < S; ++solidangle_out)
+								{
+									TList_ms_new(ii, jj, which_triangle, solidangle_out) += Rad_solidangle;
+								}
 							}
-						}
-						else
-						{
-							for (size_t solidangle_out = 0; solidangle_out < S; ++solidangle_out)
+							else
 							{
-								TList_ms_new(ii, jj, which_triangle, solidangle_out) += Rad_solidangle * RList(solidangle_in, solidangle_out);
+								for (size_t solidangle_out = 0; solidangle_out < S; ++solidangle_out)
+								{
+									TList_ms_new(ii, jj, which_triangle, solidangle_out) += Rad_solidangle * RList(solidangle_in, solidangle_out);
+								}
 							}
 						}
 					}
@@ -836,8 +877,8 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 	}
 
 	// If SolarPanel-module is used, send all needed data
-	if (cfg.keyExists("PVPFILE", "EBalance"))
-		PVobject->setTLists(TList_direct, TList_sky_iso, TList_sky_aniso, TList_ms_new + TList_sky_aniso);
+	if (_hasSP)
+		SP.setTLists(TList_direct, TList_sky_iso, TList_sky_aniso, TList_ms_new + TList_sky_aniso);
 
 // Average both triangles to one DEM-Gridpoint-Value for further Alpine3D use
 #pragma omp parallel for
@@ -1279,6 +1320,104 @@ double TerrainRadiationComplex::AngleBetween2Vectors(const Vec3D &vec1, const Ve
 	return angle;
 }
 
+
+void TerrainRadiationComplex::readSP()
+{
+	const std::string filename = cfg.get("PVPFILE", "EBalance");
+	if (!FileUtils::fileExists(filename))
+	{
+		throw NotFoundException(filename, AT);
+	}
+
+	smet::SMETReader myreader(filename);
+	std::vector<double> vec_data;
+	myreader.read(vec_data);
+	const size_t nr_fields = myreader.get_nr_of_fields();
+	const int epsg = myreader.get_header_intvalue("epsg");
+	const double smet_nodata = myreader.get_header_doublevalue("nodata");
+
+	if (myreader.location_in_data(smet::WGS84) == true)
+	{
+		size_t lat_fd = IOUtils::unodata, lon_fd = IOUtils::unodata, wid_fd = IOUtils::unodata, hig_fd = IOUtils::unodata;
+		size_t alt_fd = IOUtils::unodata, inc_fd = IOUtils::unodata, az_fd = IOUtils::unodata;
+		for (size_t ii = 0; ii < nr_fields; ii++)
+		{
+			const std::string tmp(myreader.get_field_name(ii));
+			if (tmp == "latitude")
+				lat_fd = ii;
+			if (tmp == "longitude")
+				lon_fd = ii;
+			if (tmp == "altitude")
+				alt_fd = ii;
+			if (tmp == "inclination")
+				inc_fd = ii;
+			if (tmp == "azimuth")
+				az_fd = ii;
+			if (tmp == "height")
+				hig_fd = ii;
+			if (tmp == "width")
+				wid_fd = ii;
+		}
+		for (size_t ii = 0; ii < vec_data.size(); ii += nr_fields)
+		{
+			std::vector<double> point;
+			point = {vec_data[ii + lat_fd], vec_data[ii + lon_fd], vec_data[ii + alt_fd], vec_data[ii + inc_fd], vec_data[ii + az_fd], vec_data[ii + hig_fd], vec_data[ii + wid_fd]};
+			pv_points.push_back(point);
+		}
+	}
+	else if (myreader.location_in_data(smet::EPSG) == true)
+	{
+		if (epsg == (int)floor(smet_nodata + 0.1))
+			throw InvalidFormatException("In file \"" + filename + "\", missing EPSG code in header!", AT);
+
+		size_t east_fd = IOUtils::unodata, north_fd = IOUtils::unodata, alt_fd = IOUtils::unodata;
+		size_t inc_fd = IOUtils::unodata, az_fd = IOUtils::unodata, wid_fd = IOUtils::unodata, hig_fd = IOUtils::unodata;
+		for (size_t ii = 0; ii < nr_fields; ii++)
+		{
+			const std::string tmp(myreader.get_field_name(ii));
+			if (tmp == "easting")
+				east_fd = ii;
+			if (tmp == "northing")
+				north_fd = ii;
+			if (tmp == "altitude")
+				alt_fd = ii;
+			if (tmp == "inclination")
+				inc_fd = ii;
+			if (tmp == "azimuth")
+				az_fd = ii;
+			if (tmp == "height")
+				hig_fd = ii;
+			if (tmp == "width")
+				wid_fd = ii;
+		}
+		if ((east_fd == IOUtils::unodata) || (north_fd == IOUtils::unodata) || (alt_fd == IOUtils::unodata))
+			throw InvalidFormatException("File \"" + filename + "\" does not contain all data fields necessary for EPSG coordinates", AT);
+
+		for (size_t ii = 0; ii < vec_data.size(); ii += nr_fields)
+		{
+			Coords coord_temp;
+			coord_temp.setEPSG(epsg);
+			coord_temp.setXY(vec_data[ii + east_fd], vec_data[ii + north_fd], vec_data[ii + alt_fd]);
+
+			std::vector<double> point;
+			//point={coord_temp.getLat(), coord_temp.getLon(), vec_data[ii+alt_fd], vec_data[ii+inc_fd], vec_data[ii+az_fd]};
+			point = {coord_temp.getEasting(), coord_temp.getNorthing(), vec_data[ii + alt_fd], vec_data[ii + inc_fd], vec_data[ii + az_fd], vec_data[ii + hig_fd], vec_data[ii + wid_fd]};
+			pv_points.push_back(point);
+		}
+	}
+	else
+	{
+		throw InvalidFormatException("File \"" + filename + "\" does not contain expected location information in DATA section!", AT);
+	}
+}
+
+void TerrainRadiationComplex::setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation){
+	SP.setSP(timestamp, solarAzimuth, solarElevation);
+}
+
+void TerrainRadiationComplex::writeSP(const unsigned int max_steps){
+	SP.writeSP(max_steps);
+}
 //########################################################################################################################
 //                                                     TEST OUTPUT
 //########################################################################################################################

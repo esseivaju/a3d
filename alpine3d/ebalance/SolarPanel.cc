@@ -4,7 +4,7 @@
 
 
 //file operations
-#include <iostream> 
+#include <iostream>
 #include <fstream>
 #include <stdlib.h>
 
@@ -16,9 +16,9 @@
 using namespace mio;
 
 
-SolarPanel::SolarPanel(const mio::Config& cfg, const mio::DEMObject &dem_in, const std::vector<std::vector<double> > &pv_pts, const RadiationField* radfields): 
-						dimx(dem_in.getNx()), dimy(dem_in.getNy()), dem(dem_in), pv_points(pv_pts), radobject(radfields), BRDFobject(cfg), timer(), Shadelist()
-{	
+SolarPanel::SolarPanel(const mio::Config& cfg, const mio::DEMObject &dem_in, const std::vector<std::vector<double> > &pv_pts):
+						dimx(dem_in.getNx()), dimy(dem_in.getNy()), dem(dem_in), pv_points(pv_pts), BRDFobject(cfg), timer(), Shadelist()
+{
 	// PRECISION PARAMETERS
 	// ########################
 	M_epsilon_panel=30;				// Number of small circles in Basic Set of Panels [MT fig. 2.1]
@@ -32,9 +32,9 @@ SolarPanel::SolarPanel(const mio::Config& cfg, const mio::DEMObject &dem_in, con
 	generate_PVP_sum=false; 					// Write Averaged Radiation to files. ( Make sure you have folder ../output/PVP )
 	sun_tracker=false;							// Writes File with irradiation of Tracker Following the Sun [MT 3.4.3 Tracker]
 	optimal_tracker=false;						// Writes File with irradiation of Tracker searching the optimum all the time (very expensive!) [MT 3.4.3 Tracker]
-	
+
 	// readSumPVP();							// Reads the 3 sum-files (direct.sum, diffuse.sum, terrain.sum; must be placed in ../input/PVP_SUM
-	// 
+	//
 	// ->   this enables other output (the following are examples)
 	// PrintVector(optimize(get_ii(x),get_jj(x),pv_points[x][2],100,&SolarPanel::minfun_MonoStatic));	// Prints, for PVP nr. x+1, optimal angles and corresponding radiation (for sum-period)
 	// RadiationMap(get_ii(x),get_jj(x),pv_points[x][2]);		// Write file with Irradiation for all directions of the basic set, for PVP nr. x+1,
@@ -46,19 +46,19 @@ SolarPanel::SolarPanel(const mio::Config& cfg, const mio::DEMObject &dem_in, con
 	if (method!="COMPLEX" && (generate_PVP_sum || sun_tracker || optimal_tracker) ){
 		std::cout<<"[E] In SolarPanel: TerrainRadiationComplex is required for <generate_PVP_sum>, <sun_tracker> or <optimal_tracker>.\n";
 		abort();
-	} 
+	}
 
 	// Check for required Key
 	if (cfg.keyExists("PV_shadowing", "Ebalance")) cfg.getValue("PV_shadowing", "Ebalance", if_shadowing);
 		else std::cout<<"[i] In SolarPanel: No flag <<PV_shadowing>> set in [Ebalance]. Use default PV_shadowing = "<<if_shadowing<<" .\n";
 
-	// Initialize the embedding of the panels in the terrain 
+	// Initialize the embedding of the panels in the terrain
 	initBasicSetHorizontal();
 	initBasicSetRotated();
 	initViewListPanel();
 	if (if_shadowing) initShadelist();
 	writeHeader();
-	
+
 	std::cout<<"[i] SolarPanel object created\n";
 }
 
@@ -68,7 +68,7 @@ SolarPanel::SolarPanel(const mio::Config& cfg, const mio::DEMObject &dem_in, con
 * @brief Called by TerrainRadiationComplex, updates Terrain Lists. A Terrain List (TList) stores Radiance in all S directions for whole DEM.
 *        TList_ms is full terrain radiance while TList_direct is for shading, TList_sky's are for identifying anisotropy and multiple scattering effect
 * @param[in] TList1-TList4
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::setTLists(mio::Array4D<double> TList1, mio::Array4D<double> TList2, mio::Array4D<double> TList3, mio::Array4D<double> TList4){
@@ -82,9 +82,9 @@ void SolarPanel::setTLists(mio::Array4D<double> TList1, mio::Array4D<double> TLi
 
 
 /**
-* @brief Initializing interface between TerrainRadiationComplex and SolarPanel. 
+* @brief Initializing interface between TerrainRadiationComplex and SolarPanel.
 * @param[in] TList1-TList4
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::initTerrain(size_t M_epsilon_terrain_in, size_t M_phi_terrain_in){
@@ -100,33 +100,31 @@ void SolarPanel::initTerrain(size_t M_epsilon_terrain_in, size_t M_phi_terrain_i
 
 }
 
- 
+
 /**
 * @brief Updates grid Radiation (incoming SWR for all grid points): preparing TerrainRadiation if TerrainRadiationAlg!=COMPLEX
 * @param[in] grid-albedo
 * @param[in] grid-direct SWR
 * @param[in] grid-diffuse SWR
 * @param[in] grid-direct-horizontal-unshaded (for projection on PVP/triangles)
-* @param[out] - 
+* @param[out] -
 *
 */
-void SolarPanel::setGridRadiation(const mio::Grid2DObject& in_albedo, const mio::Array2D<double>& in_direct, const mio::Array2D<double>& in_diffuse, const mio::Array2D<double>& in_direct_unshaded_horizontal){
+void SolarPanel::setGridRadiation(const mio::Array2D<double>& in_albedo, const mio::Array2D<double>& in_direct, const mio::Array2D<double>& in_diffuse, const mio::Array2D<double>& in_direct_unshaded_horizontal, const double solarAzimuth, const double solarElevation){
 
 	albedo = in_albedo;
 
 	d_diffuse = in_diffuse;
 	d_direct_unshaded_horizontal=in_direct_unshaded_horizontal;
-	d_direct_A = in_direct; 
+	d_direct_A = in_direct;
 	d_direct_B = in_direct;
 
-	double solarAzimuth, solarElevation;
-	radobject->getPositionSun(solarAzimuth, solarElevation);
 	v_globalsun=getVectorSun(solarAzimuth, solarElevation);
 
 	// Calculate Direct Radiation for all triangular pixels [MT Figure 2.2]. If TerrainRadiationAlg==COMPLEX, this is already done
 	if (Terrain_complex_mode==false)
 	{
-		#pragma omp parallel for 
+		#pragma omp parallel for
 
 		for (size_t ii=1; ii<dem.getNx()-1; ii++) {
 
@@ -159,32 +157,29 @@ void SolarPanel::setGridRadiation(const mio::Grid2DObject& in_albedo, const mio:
 				else d_direct_B(ii,jj)=0;
 			}
 		}
-	} 
+	}
 }
 
 /**
 * @brief Writes output for SolarPanels (PVP files), and updates the sum if generate_PVP_sum==true
 * @param[in] Timeobject for timestamp
 * @param[in] grid-albedo
-* @param[out] - 
+* @param[out] -
 *
 */
-void SolarPanel::setPVP(const mio::Date timestamp){
+void SolarPanel::setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation){
 	std::cout << "Key1";
 	getRadfield(); // Trigger Calculation of Iradiation on Solar Panels
 
-	double solarAzimuth, solarElevation;
-	radobject->getPositionSun(solarAzimuth, solarElevation);
-
 	std::vector<std::ofstream> PVP_files(pv_points.size());
 	std::string path = "../output/PVP/";
-	
+
 	// Open Static Panel Files
  	for (size_t i = 0; i < pv_points.size(); ++i)
 	{
 		std::string filename=path;
 		filename.append(std::to_string(i+1)).append(".pvp");
-		
+
 		PVP_files[i].open(filename, std::ios_base::app | std::ios_base::out);
 
 		if (!PVP_files[i]) {
@@ -205,11 +200,11 @@ void SolarPanel::setPVP(const mio::Date timestamp){
 	if(sun_tracker) WriteSunTrackerRadiation(0, "SunTracker.pvp", timestamp);
 
 	// Update sum [MT 3.4.4 Radiation Maps], [MT 2.2.4 Solar Panels, fig. 2.16]
-	if (generate_PVP_sum && v_globalsun[2]>=0) // no accumulation during the night 
+	if (generate_PVP_sum && v_globalsun[2]>=0) // no accumulation during the night
 	{
-		TList_sum+=TList_ms;															
+		TList_sum+=TList_ms;
 
-		#pragma omp parallel for 
+		#pragma omp parallel for
 		for (size_t ii = 0; ii < dimx; ++ii)
 		{
 			for (size_t jj = 0; jj < dimy; ++jj)
@@ -235,12 +230,12 @@ void SolarPanel::setPVP(const mio::Date timestamp){
 /**
 * @brief Updates Radiation (diffuse, direct, Terrain) for Static Solarpanels [MT 2.2.4 Solar Panels]
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::getRadfield(){
 
-	direct.clear();					// Direct Incident Radiation		
+	direct.clear();					// Direct Incident Radiation
 	diffuse.clear();				// Diffuse Radiation
 	direct_beam.clear();			// Beam Radiation
 	terrain_iso.clear();			// Single-Scattered terrain Radiation (Isotropic)
@@ -262,13 +257,13 @@ void SolarPanel::getRadfield(){
 		PVP_normal=RotationAnglesToNormalVector(pv_points[number_pvp][4], pv_points[number_pvp][3]);
 
 		/////////////////////////////
-		///// DIRECT [MT eq. 2.103] 
+		///// DIRECT [MT eq. 2.103]
 
 		dir_horinzontal=d_direct_unshaded_horizontal(ii_PVP,jj_PVP);
 
 		if (day && VectorScalarProduct(PVP_normal,v_globalsun) > 0)
 		{
-	
+
 			double proj_to_ray, proj_to_PVP;
 			size_t solidangle_sun;
 
@@ -283,11 +278,11 @@ void SolarPanel::getRadfield(){
 		else{
 			direct.push_back(0);
 			direct_beam.push_back(0);
-		} 
+		}
 
 
 		/////////////////////////////
-		///// DIRECT [MT eq. 2.105] 
+		///// DIRECT [MT eq. 2.105]
 
 		double total_terrain_iso=0, total_terrain_aniso=0, total_terrain_ms=0, total_terrain_ms_noshadow=0;
 		size_t solidangle_sun_flat=0;
@@ -316,7 +311,7 @@ void SolarPanel::getRadfield(){
 				if (if_shadowing && Shadelist(number_pvp, solidangle_sun_flat, number_solidangle)) direct_solidangle=0; //Self-shadowing
 				diffuse_solidangle=d_diffuse(ii_dem,jj_dem)*skyview_solidangle;
 
-				ray_out=VectorStretch(BasicSet_rotated[number_pvp][number_solidangle],-1); 
+				ray_out=VectorStretch(BasicSet_rotated[number_pvp][number_solidangle],-1);
 				normal_pixel=TriangleNormal(ii_dem, jj_dem, which_triangle);
 
 				cth_i=VectorScalarProduct(v_globalsun,normal_pixel);
@@ -328,7 +323,7 @@ void SolarPanel::getRadfield(){
 				total_terrain_iso=total_terrain_iso+(direct_solidangle*R+diffuse_solidangle)*albedo(ii_dem, jj_dem)/(S_panel);
 				if (albedo(ii_dem, jj_dem)>0.5) R=BRDFobject.get_RF(cth_i, cphi, cth_v);
 				total_terrain_aniso=total_terrain_aniso+(direct_solidangle*R+diffuse_solidangle)*albedo(ii_dem, jj_dem)/(S_panel);
-			
+
 			}
 		}
 
@@ -355,7 +350,7 @@ void SolarPanel::getRadfield(){
 					total_terrain_aniso-=TList_direct(ii_source, jj_source, which_triangle_source, solidangle_source)/ViewList_panel[number_pvp].size()*Cst::PI;
 					total_terrain_ms-=TList_direct(ii_source, jj_source, which_triangle_source, solidangle_source)/ViewList_panel[number_pvp].size()*Cst::PI;
 				}
-			}	
+			}
 		}
 
 		terrain_iso.push_back(total_terrain_iso);
@@ -365,7 +360,7 @@ void SolarPanel::getRadfield(){
 
 
 		/////////////////////////////
-		///// DIRECT [MT eq. 2.104] 
+		///// DIRECT [MT eq. 2.104]
 		diffuse.push_back(d_diffuse(ii_PVP, jj_PVP)*getSkyViewFactor(number_pvp));
 
 
@@ -376,10 +371,10 @@ void SolarPanel::getRadfield(){
 /**
 * @brief Writes unprojected average radiation to files
 * @param[in] max_steps timesteps of simulation for mean
-* @param[out] - 
+* @param[out] -
 *
 */
-void SolarPanel::writeSumPVP(const unsigned int max_steps)
+void SolarPanel::writeSP(const unsigned int max_steps)
 {
 	if (generate_PVP_sum){
 		std::ofstream F_DIFF, F_DIR, F_TER;
@@ -446,7 +441,7 @@ void SolarPanel::writeSumPVP(const unsigned int max_steps)
 /**
 * @brief Write Header for PVP-output
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::writeHeader(){
@@ -455,14 +450,14 @@ void SolarPanel::writeHeader(){
 	std::vector<std::ofstream> PVP_files(pv_points.size());
 	std::string path = "../output/PVP/";
 
-	
+
 	for (size_t number_pvp = 0; number_pvp < pv_points.size(); ++number_pvp)
 	{
 		std::string filename=path;
 		filename.append(std::to_string(number_pvp+1)).append(".pvp");
-		
+
 		PVP_files[number_pvp].open(filename);
-		
+
 		if (!PVP_files[number_pvp]) {
 		    std::cout << "Exception opening PVP file";
 		}
@@ -518,11 +513,11 @@ void SolarPanel::writeHeader(){
 /**
 * @brief  Initializes set of Vectors that point to equal solid angels for horizontal hemisphere (BasicSet) [MT 2.1.1 Basic Set]
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::initBasicSetHorizontal(){
-	
+
 	double psi_0=0,psi_1=0,epsilon=0;
 	double delta=0;
 	double phi=0;
@@ -556,7 +551,7 @@ void SolarPanel::initBasicSetHorizontal(){
 /**
 * @brief Rotates set of Vectors for horizontal hemisphere in Plane of PVP [MT 2.1.3 View-List]
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::initBasicSetRotated(){
@@ -572,7 +567,7 @@ void SolarPanel::initBasicSetRotated(){
 
 	for (size_t number_pvp = 0; number_pvp < pv_points.size(); ++number_pvp)
 	{
-	
+
 		inclination_panel=pv_points[number_pvp][3]*Cst::to_rad;
 		azimuth_panel=pv_points[number_pvp][4]*Cst::to_rad;
 
@@ -598,7 +593,7 @@ void SolarPanel::initBasicSetRotated(){
 /**
 * @brief Assigns a pixel (or sky) to each space vector of each PVP very similar to TerrainRadiationComplex::initViewList
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::initViewListPanel(){
@@ -613,7 +608,7 @@ void SolarPanel::initViewListPanel(){
 
 		size_t ii_PVP= get_ii(number_pvp);
 		size_t jj_PVP= get_jj(number_pvp);
-		double offset_PVP=pv_points[number_pvp][2];	
+		double offset_PVP=pv_points[number_pvp][2];
 
 		#pragma omp parallel for
 		for (size_t  number_solidangle = 0; number_solidangle < BasicSet_rotated[number_pvp].size(); ++ number_solidangle) // loop over solid angles
@@ -632,7 +627,7 @@ void SolarPanel::initViewListPanel(){
 				for (int k = -1; k < 2; ++k)
 				{
 					for (int kk = -1; kk < 2; ++kk)
-					{	
+					{
 
 						ii_dem = ii_PVP + (int)round( ((double)nb_cells)*projected_ray[0] ) + k;
 						jj_dem = jj_PVP + (int)round( ((double)nb_cells)*projected_ray[1] ) + kk;
@@ -661,7 +656,7 @@ void SolarPanel::initViewListPanel(){
 				jj_dem = jj_PVP + (int)round( ((double)nb_cells)*projected_ray[1] );
 				nb_cells+=2.7;
 			}
-			
+
 			if (minimal_distance==dem.cellsize*(dem.getNx()+dem.getNy())) minimal_distance=-999;
 			SList_temp[number_solidangle]={minimal_distance, (double)ii_temp, (double)jj_temp, (double)which_triangle_temp};
 		}
@@ -673,7 +668,7 @@ void SolarPanel::initViewListPanel(){
 /**
 * @brief For terraincomplex-Mode: Assigns index of back-staring vector
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::initViewListTerrain(){
@@ -703,7 +698,7 @@ void SolarPanel::initViewListTerrain(){
 /**
 * @brief initialize shadows based on BasicSet of sun positions
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::initShadelist()
@@ -712,7 +707,7 @@ void SolarPanel::initShadelist()
 
 	for (size_t number_pvp = 0; number_pvp < pv_points.size(); ++number_pvp) // loop over PVP
 	{
-		#pragma omp parallel for 
+		#pragma omp parallel for
 		for (size_t  solidangle_sun = 0; solidangle_sun < S_panel; ++ solidangle_sun) // loop over solid angles
 		{
 			std::vector<double> v_sun=BasicSet_horizontal[solidangle_sun];
@@ -734,7 +729,7 @@ void SolarPanel::initShadelist()
 /**
 * @brief Initialisation of Sum-objects
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::initSumPVP(){
@@ -742,14 +737,14 @@ void SolarPanel::initSumPVP(){
 	TList_sum.resize(dimx, dimy, 2, S_terrain, 0);
 	Direct_sum.resize(dimx, dimy, S_panel, 0);
 	Diffuse_sum.resize(dimx, dimy, 0);
-	
+
 }
 
 
 /**
 * @brief Read Sum from files
 * @param[in] -
-* @param[out] - 
+* @param[out] -
 *
 */
 void SolarPanel::readSumPVP(){
@@ -763,7 +758,7 @@ void SolarPanel::readSumPVP(){
     for (int i = 0; i < 5; ++i) getline(F_DIFF, garbage);
 
     Diffuse_sum.resize(dimx, dimy, 0);
-  
+
     size_t ii,jj, number_solidangle;
 	double diffuse_temp;
 
@@ -773,7 +768,7 @@ void SolarPanel::readSumPVP(){
 	}
 
 	// DIRECT
-	
+
 	std::ifstream F_DIR ("../input/PVP_SUM/direct.sum");
 
     for (int i = 0; i < 2; ++i) getline(F_DIR, garbage);
@@ -791,7 +786,7 @@ void SolarPanel::readSumPVP(){
 	}
 
 	// TERRAIN
-	
+
 	std::ifstream F_TER("../input/PVP_SUM/terrain.sum");
 
     for (int i = 0; i < 2; ++i) getline(F_TER, garbage);
@@ -801,7 +796,7 @@ void SolarPanel::readSumPVP(){
 	for (int i = 0; i < 3; ++i) getline(F_TER, garbage);
 
     TList_sum.resize(dimx, dimy, 2, S_terrain, 0);
-  
+
 	double terrain_temp;
 	int which_triangle;
 
@@ -811,22 +806,22 @@ void SolarPanel::readSumPVP(){
 	}
 
 	if(M_epsilon_terrain!=M_epsilon_panel || M_phi_terrain!=M_phi_panel) throw std::invalid_argument( "readSumPVP: S_terrain and S_panel dont agree.\n" );
-	
+
 	std::cout<<"Done readSumPVP \n";
 
 }
 
 
-/** 
+/**
 * @brief prepare geometry for 1-panel sum
 * @param[in] ii grid coordinate (East)
 * @param[in] jj grid coordinate (North)
 * @param[in] height offset over terrain szrface [m]
 * @param[in] SVector_temp Rotated BasicSet
-* @param[out] SList_SumPVP ViewList for this one panel 
+* @param[out] SList_SumPVP ViewList for this one panel
 *
 */
-mio::Array2D<double> SolarPanel::initSListSumPVP(size_t ii, size_t jj, double height, std::vector<std::vector<double> > SVector_temp) 
+mio::Array2D<double> SolarPanel::initSListSumPVP(size_t ii, size_t jj, double height, std::vector<std::vector<double> > SVector_temp)
 {
 	mio::Array2D<double> SList_SumPVP;
 	SList_SumPVP.resize(S_panel, 5, -999);
@@ -853,7 +848,7 @@ mio::Array2D<double> SolarPanel::initSListSumPVP(size_t ii, size_t jj, double he
 			for (int k = -1; k < 2; ++k)
 			{
 				for (int kk = -1; kk < 2; ++kk)
-				{	
+				{
 					ii_dem = ii_PVP + (int)round( ((double)nb_cells)*projected_ray[0] ) + k;
 					jj_dem = jj_PVP + (int)round( ((double)nb_cells)*projected_ray[1] ) + kk;
 					if((ii_dem<1 || ii_dem>dem.getNx()-2 || jj_dem<1 || jj_dem>dem.getNy()-2)) continue;
@@ -880,7 +875,7 @@ mio::Array2D<double> SolarPanel::initSListSumPVP(size_t ii, size_t jj, double he
 			jj_dem = jj_PVP + (int)round( ((double)nb_cells)*projected_ray[1] );
 			nb_cells++;
 		}
-			
+
 		if (minimal_distance==dem.cellsize*(dem.getNx()+dem.getNy())) minimal_distance=-999;
 
 		if (minimal_distance==-999) solidangle_source=999;
@@ -901,7 +896,7 @@ mio::Array2D<double> SolarPanel::initSListSumPVP(size_t ii, size_t jj, double he
 }
 
 
-/** 
+/**
 * @brief calculate Average-Radiation on specific panel; very similar to SolarPanel::getRadfield but for sum
 * @param[in] ii grid coordinate (East)
 * @param[in] jj grid coordinate (North)
@@ -918,7 +913,7 @@ std::vector<double> SolarPanel::projectSum(size_t ii, size_t jj, double height, 
 	{
 		SVector_temp.push_back({0,0,0});
 	}
-	#pragma omp parallel for 
+	#pragma omp parallel for
 	for (size_t number_solidangle = 0; number_solidangle < S_panel; ++number_solidangle)
 	{
 		std::vector<double> v_rotated=BasicSet_horizontal[number_solidangle];
@@ -958,7 +953,7 @@ std::vector<double> SolarPanel::projectSum(size_t ii, size_t jj, double height, 
 		size_t which_triangle_source=SList_SumPVP(number_solidangle,3);
 		size_t solidangle_source=SList_SumPVP(number_solidangle,4);
 		terrain_p+=TList_sum(ii_source, jj_source, which_triangle_source, solidangle_source)/S_panel*Cst::PI;
-	}	
+	}
 	// Direct
 	std::vector<double> PVP_normal=RotationAnglesToNormalVector(azimuth, inclination);
 
@@ -989,7 +984,7 @@ std::vector<double> SolarPanel::projectSum(size_t ii, size_t jj, double height, 
 * @param[in] height offset over terrain szrface [m]
 * @param[in] azimuth of panel [deg]
 * @param[in] inclination of panel [deg]
-* @param[out] {direct_p,diffuse_p,terrain_p} Radiation components 
+* @param[out] {direct_p,diffuse_p,terrain_p} Radiation components
 */
 std::vector<double> SolarPanel::projectTracker(size_t ii, size_t jj, double height, double azimuth, double inclination){
 
@@ -1035,14 +1030,14 @@ std::vector<double> SolarPanel::projectTracker(size_t ii, size_t jj, double heig
 	for (size_t number_solidangle = 0; number_solidangle < S_panel; ++number_solidangle)
 	{
 		if (SList_SumPVP(number_solidangle,0)==-999) continue;
-	
+
 		size_t ii_source=SList_SumPVP(number_solidangle,1);
 		size_t jj_source=SList_SumPVP(number_solidangle,2);
 		size_t which_triangle_source=SList_SumPVP(number_solidangle,3);
 		size_t solidangle_source=SList_SumPVP(number_solidangle,4);
 
 		terrain_p+=TList_ms(ii_source, jj_source, which_triangle_source, solidangle_source)/S_panel*Cst::PI;
-	}	
+	}
 
 	// Direct
 	size_t solidangle_sun;
@@ -1059,11 +1054,11 @@ std::vector<double> SolarPanel::projectTracker(size_t ii, size_t jj, double heig
 		solidangle_sun=0; // Need some finite number, direct radiation is anyway zero.
 	}
 	else solidangle_sun=vectorToSPixel(v_globalsun, inclination, azimuth, M_epsilon_panel, M_phi_panel);
-	if (solidangle_sun > S_panel) solidangle_sun=0; // Hard fix to prevent crash in case of numerical rotation error  
+	if (solidangle_sun > S_panel) solidangle_sun=0; // Hard fix to prevent crash in case of numerical rotation error
 	if (SList_SumPVP(solidangle_sun,0)!=-999) cos_sun_panel=0; // shading
 
 	direct_p=d_direct_unshaded_horizontal(ii,jj)*cos_sun_panel*cos_sun_horizontal;
-	
+
 	return {direct_p,diffuse_p,terrain_p};
 }
 
@@ -1075,10 +1070,10 @@ std::vector<double> SolarPanel::projectTracker(size_t ii, size_t jj, double heig
 * @param[in] height offset over terrain szrface [m]
 * @param[in] rounds upper limit of iterations
 * @param[in] f_min function to minimize
-* @param[out] {f[k_min], x[k_min][0], x[k_min][1]} min of f_min [W/m^2], optimal inclination [deg], optimal azimuth [deg] 
+* @param[out] {f[k_min], x[k_min][0], x[k_min][1]} min of f_min [W/m^2], optimal inclination [deg], optimal azimuth [deg]
 */
 std::vector<double> SolarPanel::optimize(size_t ii, size_t jj, double height, size_t rounds, minfun f_min){
-	const double a=1.0, b=1.0, g=0.5, h=0.5, tolerance=1; 
+	const double a=1.0, b=1.0, g=0.5, h=0.5, tolerance=1;
 	bool shrink=false;
 
 	std::vector<double> f={0,0,0};
@@ -1099,7 +1094,7 @@ std::vector<double> SolarPanel::optimize(size_t ii, size_t jj, double height, si
 		if (count==0)
 		{
 			for (int i = 0; i < 3; ++i)
-			{	
+			{
 				f[i]=(this->*f_min)(ii, jj, height, x[i]);
 			}
 		}
@@ -1110,7 +1105,7 @@ std::vector<double> SolarPanel::optimize(size_t ii, size_t jj, double height, si
 				if(i==k_min) continue;
 				f[i]=(this->*f_min)(ii, jj, height, x[i]);
 			}
-		} 
+		}
 		shrink=false;
 
 
@@ -1128,7 +1123,7 @@ std::vector<double> SolarPanel::optimize(size_t ii, size_t jj, double height, si
 		k_n=k_min;
 		for (size_t i = 0; i < x.size(); ++i)
 		{
-			if (f[i]<f[k_max] && f[i]>f[k_n]) k_n=i; 
+			if (f[i]<f[k_max] && f[i]>f[k_n]) k_n=i;
 		}
 
 		// centroid & termination
@@ -1194,7 +1189,7 @@ std::vector<double> SolarPanel::optimize(size_t ii, size_t jj, double height, si
 }
 
 
-/** 
+/**
 * @brief minimisation function of Monofacial tracker
 * @param[in] ii grid coordinate (East)
 * @param[in] jj grid coordinate (North)
@@ -1209,7 +1204,7 @@ double SolarPanel::minfun_MonoTracker(size_t ii, size_t jj, double height, std::
 }
 
 
-/** 
+/**
 * @brief minimisation function of Monofacial static Panel
 * @param[in] ii grid coordinate (East)
 * @param[in] jj grid coordinate (North)
@@ -1229,7 +1224,7 @@ double SolarPanel::minfun_MonoStatic(size_t ii, size_t jj, double height, std::v
 //########################################################################################################################
 
 
-/** 
+/**
 * @brief intersection finder of direction vector and triangular surface object
 *   See TerrainRadiationComplex::IntersectionRayTriangle for More information
 * @param[in] ray normalized direction-vector
@@ -1245,7 +1240,7 @@ double SolarPanel::IntersectionRayTriangle(std::vector<double> ray, size_t ii_PV
 {
 	std::vector<double> aufpunkt_ray, balance_point_par, intersection;
 	std::vector<double> e_x,e_y,e_xT,e_yT,n;
-	
+
 
 	double cellsize=dem.cellsize;
 	double distance, P_3, r_3;
@@ -1292,9 +1287,9 @@ double SolarPanel::IntersectionRayTriangle(std::vector<double> ray, size_t ii_PV
 
 
 /**
-* @brief Assigns index s of Basic-Set to given vector 
+* @brief Assigns index s of Basic-Set to given vector
 * @param[in] vec_in normalized vector
-* @param[in] inclination [deg] 
+* @param[in] inclination [deg]
 * @param[in] azimuth [deg]
 * @param[out] list_index
 */
@@ -1316,7 +1311,7 @@ size_t SolarPanel::vectorToSPixel(std::vector<double> vec_in, double inclination
 	if (vec_horizontal[2]<0){
 		std::cout<<"Vector lower than horizon SolarPanel::vectorToSPixel\n";
 		return -999;
-	} 
+	}
 
 	vec_projected_xy={vec_horizontal[0],vec_horizontal[1],0};
 
@@ -1339,7 +1334,7 @@ size_t SolarPanel::vectorToSPixel(std::vector<double> vec_in, double inclination
 		if (i!=(N-1)){
 			delta=acos(-2/float(N)+cos(2*phi_temp))/2-phi_temp;
 			phi_temp+=delta;
-		} 
+		}
 		else phi_temp=Cst::PI/2;
 		if(phi<=phi_temp) n=i;
 		i+=1;
@@ -1413,7 +1408,7 @@ bool SolarPanel::doesPanelShadowPixel(std::vector<double> v_sun, size_t number_p
 	std::vector<double> ray=BasicSet_rotated[number_pvp][number_solidangle];
 	double distance=ViewList_panel[number_pvp][number_solidangle][0];
 	std::vector<double> r_0={pv_points[number_pvp][0],pv_points[number_pvp][1], dem(get_ii(number_pvp), get_jj(number_pvp))+pv_points[number_pvp][2]};
-	
+
 	for (size_t pp = 0; pp < pv_points.size(); ++pp)
 	{
 
@@ -1619,7 +1614,7 @@ int SolarPanel::get_jj(int number_pvp){
 			return coord_temp.getGridJ();
 }
 
-std::vector<double> SolarPanel::getVectorSun(double solarAzimuth,double solarElevation)
+std::vector<double> SolarPanel::getVectorSun(const double solarAzimuth, const double solarElevation)
 {
 	std::vector<double> v_out={0,0,0};
 	v_out[0]=cos(solarElevation*Cst::to_rad)*sin(solarAzimuth*Cst::to_rad);
@@ -1640,7 +1635,7 @@ double SolarPanel::AngleBetween2Vectors(std::vector<double> vec1, std::vector<do
 {
 	double sum=0;
 	double angle=0;
-	double norm1,norm2; 
+	double norm1,norm2;
 	if(vec1.size()!=vec2.size()) return -999;
 
 	for (size_t i = 0; i < vec1.size(); ++i)
@@ -1830,14 +1825,14 @@ void SolarPanel::RadiationMap(size_t ii, size_t jj, double elevation){
 
 	VF_file<<"index, azimuth, phi, radiation\n";
 
-	#pragma omp parallel for 
+	#pragma omp parallel for
 	for (size_t solidangle = 0; solidangle < S_panel; ++solidangle)
 	{
 		std::vector<double> angles=listindexToAngles(solidangle);
 		angles[0]=angles[0]*Cst::to_deg-180; // to rotation default (azimuth)
 		angles[1]=90-angles[1]*Cst::to_deg; // to rotation default (inclination))
 
-		
+
 		std::vector<double> radiation=projectSum(ii, jj, elevation, angles[0],angles[1]);
 		double radiation_tot=radiation[0]+radiation[1]+radiation[2];
 
@@ -1877,7 +1872,7 @@ void SolarPanel::GridRadiationMap(double offset){
 		for (size_t jj = 1; jj < dimy-1; jj+=1)
 		{
 			std::vector<double> radiation=optimize(ii, jj, offset, 40, &SolarPanel::minfun_MonoStatic);
-		
+
 			Rad_List(ii,jj,0)=radiation[0];
 			Rad_List(ii,jj,1)=radiation[1];
 			Rad_List(ii,jj,2)=radiation[2];
@@ -1894,7 +1889,7 @@ void SolarPanel::GridRadiationMap(double offset){
 		}
 	}
 
-	VF_file.close(); 
+	VF_file.close();
 	std::cout<<"Done GridRadiationMap \n";
 }
 
@@ -1929,7 +1924,7 @@ void SolarPanel::WriteOptimumTrackerRadiation(size_t number_pvp, std::string fil
 void SolarPanel::WriteSunTrackerRadiation(size_t number_pvp, std::string filename, const mio::Date timestamp){
 
 	if (Terrain_complex_mode!=true) throw std::invalid_argument( "[E] SolarPanel::WriteSunTrackerRadiation only runs in TerrainRadiationComplex-mode \n");
-	
+
 	double height=3;
 	std::vector<double> angles=NormalVectorToRotationAngles(v_globalsun);
 

@@ -32,7 +32,7 @@ TerrainRadiationAlgorithm::~TerrainRadiationAlgorithm() {}
 // FELIX: const RadiationField* radfield
 //please document these keywords in EnergyBalance.h
 TerrainRadiationAlgorithm* TerrainRadiationFactory::getAlgorithm(const Config& cfg, const DEMObject &dem,
-                                                                 const int& nbworkers, SolarPanel* PVobject)
+                                                                 const int& nbworkers)
 {
 	string method = "SIMPLE";
 	cfg.getValue("Terrain_Radiation_Method", "EBalance", method, IOUtils::nothrow);
@@ -43,7 +43,7 @@ TerrainRadiationAlgorithm* TerrainRadiationFactory::getAlgorithm(const Config& c
 	} else if (method == "HELBIG") {
 		return new TerrainRadiationHelbig(cfg, dem, nbworkers, method);
 	} else if (method == "COMPLEX") {
-		return new TerrainRadiationComplex(cfg, dem, method, PVobject);
+		return new TerrainRadiationComplex(cfg, dem, method);
 	} else {
 		throw IOException("The terrain radiation method '"+method+"' is not implemented/activated" , AT);
 	}

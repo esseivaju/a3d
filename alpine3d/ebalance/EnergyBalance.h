@@ -81,11 +81,9 @@ class EnergyBalance
 		void setMeteo(const mio::Grid2DObject& in_ilwr,
 		              const mio::Grid2DObject& in_ta, const mio::Grid2DObject& in_rh, const mio::Grid2DObject& in_p, const mio::Date timestamp);
 
-		//FELIX
-		void setPVP(const mio::Date timestamp);
-		void writeSumPVP(const unsigned int max_steps);
-		void readPVP();
+		void writePVP(const unsigned int max_steps);
 
+		const bool hasSP(){return terrain_radiation->hasSP();}
 		void setStations(const std::vector<mio::MeteoData>& in_vecMeteo);
 		double getTiming() const;
 		void Destroy();
@@ -101,9 +99,6 @@ class EnergyBalance
 		mio::Grid2DObject albedo;
 		mio::Array2D<double> direct_unshaded_horizontal, direct, diffuse, reflected; //FELIX: direct_unshaded_horizontal
 		mio::Timer timer;
-		std::vector<std::vector<double> > pv_points;
-		//FELIX
-		SolarPanel *PVP;
 		const mio::Config& cfg;
 		unsigned int nbworkers;
 };

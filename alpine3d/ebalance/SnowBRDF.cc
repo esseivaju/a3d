@@ -55,7 +55,7 @@ void SnowBRDF::initialize(const mio::Config& cfg){
 		}
 		if(file.is_open()==0) std::cout<<"[e] in BRDF: file ’"<<filename<<"’not found.\n";
 		if(file.is_open()==0) throw std::invalid_argument( "File Not Found\n" );
-	} 
+	}
 }
 
 // linearly interpolates BRDF_data and gives out corresponding value.

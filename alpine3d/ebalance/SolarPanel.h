@@ -11,22 +11,26 @@
 class SolarPanel{
 
 	public:
-		SolarPanel(const mio::Config& cfg, const mio::DEMObject &dem_in, const std::vector<std::vector<double> > &pv_pts, const RadiationField* radfields);
-	
-		void setPVP(const mio::Date timestamp);
-		void setGridRadiation(const mio::Grid2DObject& in_albedo, const mio::Array2D<double>& in_direct, const mio::Array2D<double>& in_diffuse, const mio::Array2D<double>& in_direct_unshaded_horizontal);
-		
+		SolarPanel(){};
+
+		SolarPanel(const mio::Config& cfg, const mio::DEMObject &dem_in, const std::vector<std::vector<double> > &pv_pts);
+
+		void setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation);
+		void setGridRadiation(const mio::Array2D<double>& in_albedo, const mio::Array2D<double>& in_direct,
+                          const mio::Array2D<double>& in_diffuse, const mio::Array2D<double>&
+                          in_direct_unshaded_horizontal, const double solarAzimuth, const double solarElevation);
+
 		void initTerrain(size_t N_terrain_in, size_t M_terrain_in);
 		void setTLists(mio::Array4D<double> TList1, mio::Array4D<double> TList2, mio::Array4D<double> TList3, mio::Array4D<double> TList4);
-		void writeSumPVP(const unsigned int max_steps);
+		void writeSP(const unsigned int max_steps);
 
-	private:	
+	private:
 		typedef double (SolarPanel::*minfun)(size_t, size_t, double, std::vector<double>);
 
 
 		// Initialisation Functions Functions
 		void getRadfield();
-		void writeHeader(); 
+		void writeHeader();
 
 		void initBasicSetHorizontal();
 		void initBasicSetRotated();
@@ -34,7 +38,7 @@ class SolarPanel{
 		void initViewListTerrain();
 		void initShadelist();
 
- 
+
 		// Essential Functions
 		size_t vectorToSPixel(std::vector<double> vec_in, size_t N, size_t M);
 		size_t vectorToSPixel(std::vector<double> vec_in, size_t number_pvp, size_t N, size_t M);
@@ -55,7 +59,7 @@ class SolarPanel{
 		std::vector<double> projectSum(size_t ii, size_t jj, double height, double azimuth, double inclination);
 
 		std::vector<double> projectTracker(size_t ii, size_t jj, double height, double azimuth, double inclination);
-		
+
 		std::vector<double> optimize(size_t ii, size_t jj, double height, size_t rounds, minfun f_min);
 		double minfun_MonoTracker(size_t ii, size_t jj, double height, std::vector<double> x);
 		double minfun_MonoStatic(size_t ii, size_t jj, double height, std::vector<double> x);
@@ -68,7 +72,7 @@ class SolarPanel{
 		int get_ii(int number_pvp);
 		int get_jj(int number_pvp);
 		std::vector<double> TriangleNormal(size_t ii_dem, size_t jj_dem, int which_triangle);
-		std::vector<double> getVectorSun(double solarAzimuth,double solarElevation);
+		std::vector<double> getVectorSun(const double solarAzimuth, const double solarElevation);
 
 
 		// Elementary functions
@@ -107,7 +111,6 @@ class SolarPanel{
 
 		mio::DEMObject dem;
 		std::vector<std::vector<double> > pv_points;
-		const RadiationField* radobject;
 		SnowBRDF BRDFobject;
 		mio::Timer timer;
 		mio::Array3D<size_t> Shadelist;
@@ -119,18 +122,18 @@ class SolarPanel{
 		std::vector<std::vector<std::vector<double> > > BasicSet_rotated; //For each PVP a set of Spherical-pixel vectors according to inclination and azimuth of Pannel
 		std::vector<std::vector<std::vector<double> > > ViewList_panel; //For each Spherical-pixel (and for all PVP's), the ii.jj of the DEM-grid are assigned as well as the distance
 
-		
-		std::vector<double> direct, diffuse, terrain_iso, terrain_aniso, terrain_ms, terrain_ms_noshadow, direct_beam; 
+
+		std::vector<double> direct, diffuse, terrain_iso, terrain_aniso, terrain_ms, terrain_ms_noshadow, direct_beam;
 		mio::Array4D<double> TList_direct, TList_sky_iso, TList_sky_aniso,  TList_ms;
 		mio::Array4D<double> TList_sum;
 		mio::Array3D<double> Direct_sum;
 		mio::Array2D<double> Diffuse_sum;
-		
-		mio::Grid2DObject albedo;
+
+		mio::Array2D<double> albedo;
 		mio::Array2D<double> d_direct_A, d_direct_B, d_diffuse, d_direct_unshaded_horizontal;
 		const mio::Date* dateobject;
 		std::vector<std::string> filenames;
-		
+
 		bool if_shadowing=true;
 		size_t alpine_steps=0;
 

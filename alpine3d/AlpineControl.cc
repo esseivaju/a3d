@@ -56,10 +56,10 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 	if (isMaster) {
 		cout << "\n**** Done initializing\n";
 		cout << "**** Starting Calculation on date: " << calcDate.toString(Date::ISO) << " using Alpine3D version " << A3D_VERSION << "\n";
-		if (nocompute) 
+		if (nocompute)
 			cout << "**** Performing dry run (--no-compute option)\n";
 		cout << "\n";
-		
+
 		if (nocompute) {
 			const Grid2DObject maskGlacier( snowpack->getGrid(SnGrids::GLACIER) );
 			meteo.setGlacierMask(maskGlacier);
@@ -69,7 +69,7 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 	//if the meteo data would need to be resampled, we try to fill the buffer with a date a little bit before
 	if (snowdrift) meteo.setSkipWind(true); //do not fill grids if met3D
 	meteo.prepare(i_startdate);
-	
+
 	elapsed.start();
 	for (unsigned int t_ind=0; t_ind<max_steps; t_ind++) { //main computational loop
 		const double elapsed_start = elapsed.getElapsed();
@@ -79,7 +79,7 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 			cout << "\nSimulation step " << t_ind+1 << "/" << max_steps << " at time step " << calcDate.toString(mio::Date::ISO_TZ) << "\n";
 			cout << std::fixed << "Elapsed time: " << setprecision(1) << elapsed_start << " seconds\nEstimated completion in " << est_completion/3600. << " hours\n";
 		}
-		
+
 		//for --no-compute, simply check the data and move on
 		if (nocompute) {
 			meteo.prepare(calcDate); //prepare the current timestep (because it could not be prepared before)
@@ -95,12 +95,12 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 		} catch (IOException&) {
 			//saving state files before bailing out
 			if (isMaster) {
-				if (out_snow && t_ind>0 && snowpack) 
+				if (out_snow && t_ind>0 && snowpack)
 					snowpack->writeOutputSNO(calcDate-1./24.); //output for last hour
 				throw;
 			}
 		}
-		
+
 		if (t_ind < (max_steps-1)) {
 			meteo.prepare(calcDate+timeStep); //prepare next timestep
 		}
@@ -128,7 +128,6 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 		try {
 			if (eb && !snowdrift) { //otherwise snowdrift calls eb.setMeteo()
 				eb->setMeteo(ilwr, ta, rh, p, calcDate);
-				eb->setPVP(calcDate); //FELIX
 			}
 		} catch (std::bad_alloc&) {
 			cout << "[E] AlpineControl : Virtual memory exceeded\n";
@@ -175,11 +174,9 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 	} /* For all times max_steps */
 
 	//Finish the program: Write SNO Files and put final output on the screen
-	if (eb) eb->writeSumPVP(max_steps); //FELIX
-
+	if (eb && eb->hasSP()) eb->writeSP(max_steps);
 	if (snowpack && out_snow && !nocompute){
 		if (isMaster) cout << "[i] Simulation finished, writing output files...\n";
 		snowpack->writeOutputSNO(calcDate);
 	 }
 }
-
