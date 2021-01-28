@@ -81,7 +81,7 @@ class EnergyBalance
 		void setMeteo(const mio::Grid2DObject& in_ilwr,
 		              const mio::Grid2DObject& in_ta, const mio::Grid2DObject& in_rh, const mio::Grid2DObject& in_p, const mio::Date timestamp);
 
-		void writePVP(const unsigned int max_steps);
+		void writeSP(const unsigned int max_steps);
 
 		const bool hasSP(){return terrain_radiation->hasSP();}
 		void setStations(const std::vector<mio::MeteoData>& in_vecMeteo);

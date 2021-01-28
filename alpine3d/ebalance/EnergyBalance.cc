@@ -180,7 +180,7 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 	timer.stop();
 }
 
-void EnergyBalance::writePVP(const unsigned int max_steps){
+void EnergyBalance::writeSP(const unsigned int max_steps){
 	if (hasSP()) terrain_radiation->writeSP(max_steps);
 }
 
