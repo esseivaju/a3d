@@ -60,7 +60,7 @@ void TerrainRadiationHelbig::getRadiation(const mio::Array2D<double>& direct, mi
                                           direct_unshaded_horizontal,
                                           double solarAzimuth, double solarElevation)
 {
-		std::cout << "[i] calc nora radiation" << std::endl;
+		std::cout << "[i] Computing Helbig radiation" << std::endl;
 		tdir = direct;
 		tdiff = diffuse;
 		Compute();
@@ -178,7 +178,6 @@ int TerrainRadiationHelbig::SWTerrainRadiationStep(const double threshold_itEps_
 	if ( eps_stern <= threshold_itEps_SW || be >= (itEps1_SW *
 		     ( mean_glob_start * dimx * dimy )) || diffmax_sw<=diffmax_thres) {
 		printf("[i] EBALANCE: SW converged after n=%u steps eps_stern <= %2.10f be <= %2.10f with %u gathering steps\n", n, eps_stern, be, s);
-		printf("    time for SW %f seconds\n", (double)((clock() - t0)/CLOCKS_PER_SEC));
 		fflush( stdout );
 		return 1;
 	}
@@ -392,14 +391,13 @@ void TerrainRadiationHelbig::ComputeTerrainRadiation ( const bool& day, int i_ma
 		mio::Timer timer_sw;
 		timer_sw.start();
 		//HACK: do computation on square, as for LW
-		std::cout << "converged: " << converged << std::endl;
 		while (converged != 1) {
 			n++;
 			converged = SWTerrainRadiationStep(threshold_itEps_SW, i_max_unshoot, j_max_unshoot, n, t0);
 		}
 
 		timer_sw.stop();
-		std::cout << "calc sw radiation: " << timer_sw.getElapsed() << std::endl;
+		std::cout << "[i] SW radiation computation time: " << timer_sw.getElapsed() << std::endl;
 	}
 
 	//computing LW terrain radiation
