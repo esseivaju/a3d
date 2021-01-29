@@ -69,8 +69,11 @@ public:
 	TerrainRadiationComplex(const mio::Config &cfg, const mio::DEMObject &dem_in, const std::string &method);
 	~TerrainRadiationComplex();
 
-	void getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse, mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal, mio::Array2D<double> &view_factor, double solarAzimuth, double solarElevation);
+	void getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse, mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal, double solarAzimuth, double solarElevation);
 	void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &ta, const mio::Array2D<double> &rh, const mio::Array2D<double> &ilwr);
+	void getSkyViewFactor(mio::Array2D<double> &o_sky_vf);
+	void setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation);
+	void writeSP(const unsigned int max_steps);
 
 private:
 	typedef std::array<double, 3> Vec3D;
@@ -92,7 +95,6 @@ private:
 	double computeSkyViewFactor(size_t ii_dem, size_t jj_dem, size_t which_triangle);
 	double getLandViewFactor(size_t ii_dem, size_t jj_dem, size_t which_triangle);
 	double getSkyViewFactor(size_t ii_dem, size_t jj_dem, size_t which_triangle);
-	void getSkyViewFactor(mio::Array2D<double> &o_sky_vf);
 	void getVectorSun(double solarAzimuth, double solarElevation, Vec3D &v_out);
 	double TerrainBiggestDifference(const mio::Array3D<double> &terrain_old, const mio::Array3D<double> &terrain_new);
 
@@ -110,8 +112,7 @@ private:
 
 	// PVP functions
 	void readSP();
-	void setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation);
-	void writeSP(const unsigned int max_steps);
+
 
 	// Output functions
 	void PrintProgress(double percentage);

@@ -54,7 +54,18 @@ EnergyBalance::EnergyBalance(const unsigned int& i_nbworkers, const mio::Config&
 		if (instance.master())
 			std::cout << "[i] Using terrain radiation with model: " << algo << "\n";
 	}
+	bool write_sky_vf=false;
+	cfg.getValue("WRITE_SKY_VIEW_FACTOR", "output", write_sky_vf,IOUtils::nothrow);
+
+	if(MPIControl::instance().master() && write_sky_vf){
+		std::cout << "[i] Writing sky view factor grid" << std::endl;
+		mio::IOManager io(cfg);
+		mio::Array2D<double> sky_vf(dimx,dimy,mio::IOUtils::nodata);
+		terrain_radiation->getSkyViewFactor(sky_vf);
+		io.write2DGrid(mio::Grid2DObject(dem_in.cellsize,dem_in.llcorner,sky_vf), "SKY_VIEW_FACTOR");
+	}
 }
+
 
 EnergyBalance::~EnergyBalance() {
 	Destroy( );
@@ -148,13 +159,10 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 	if (hasSP())
 		terrain_radiation->setSP(radfields[0].getDate(), solarAzimuth, solarElevation);
 
-
-
-	mio::Array2D<double> view_factor(dimx, dimy, IOUtils::nodata);
 	if (terrain_radiation) {
 		// note: parallelization has to take place inside the TerrainRadiationAlgorithm implementations
 		terrain_radiation->setMeteo(albedo.grid2D, in_ta.grid2D, in_rh.grid2D, in_ilwr.grid2D);
-		terrain_radiation->getRadiation(direct, diffuse, reflected, direct_unshaded_horizontal,view_factor,
+		terrain_radiation->getRadiation(direct, diffuse, reflected, direct_unshaded_horizontal,
                                     solarAzimuth, solarElevation);
 	}
 
@@ -169,7 +177,7 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 
 		timer.stop();
 		try {
-			snowpack->setRadiationComponents(global, ilwr, diffuse, view_factor, reflected,
+			snowpack->setRadiationComponents(global, ilwr, diffuse, reflected,
                                        in_ilwr.grid2D,  solarElevation, timestamp); //this triggers Snowpack calculation
 		} catch(std::exception& e) {
 			std::cout << "[E] Exception in snowpack->setRadiationComponents()\n";

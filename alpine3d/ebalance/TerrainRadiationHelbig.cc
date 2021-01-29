@@ -53,21 +53,11 @@ TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config& cfg, const mio
 
 	LW_distance_index = (int)ceil(lw_radius / cellsize);
 
-  bool write_sky_vf=false;
-  cfg.getValue("WRITE_SKY_VIEW_FACTOR", "output", write_sky_vf,IOUtils::nothrow);
-
-  if(MPIControl::instance().master() && write_sky_vf){
-    std::cout << "[i] Writing sky view factor grid" << std::endl;
-    mio::Array2D<double> sky_vf(dimx,dimy);
-    getSkyViewFactor(sky_vf);
-    mio::IOManager io(cfg);
-    io.write2DGrid(mio::Grid2DObject(dem_in.cellsize,dem_in.llcorner,sky_vf), "SKY_VIEW_FACTOR");
-  }
 }
 
 void TerrainRadiationHelbig::getRadiation(const mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
                                           mio::Array2D<double>& terrain, mio::Array2D<double>&
-                                          direct_unshaded_horizontal, mio::Array2D<double>& view_factor,
+                                          direct_unshaded_horizontal,
                                           double solarAzimuth, double solarElevation)
 {
 		std::cout << "[i] calc nora radiation" << std::endl;
@@ -75,8 +65,7 @@ void TerrainRadiationHelbig::getRadiation(const mio::Array2D<double>& direct, mi
 		tdiff = diffuse;
 		Compute();
 		terrain = total_terrain;
-    diffuse=tdiff;
-    getSkyViewFactor(view_factor);
+		diffuse=tdiff;
 }
 
 void TerrainRadiationHelbig::getSkyViewFactor(mio::Array2D<double> &o_sky_vf) {

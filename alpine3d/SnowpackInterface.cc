@@ -104,7 +104,7 @@ SnowpackInterface::SnowpackInterface(const mio::Config& io_cfg, const size_t& nb
                   meteo_outpath(), outpath(), mask_glaciers(false), mask_dynamic(false), maskGlacier(), tz_out(0.),
                   sn_cfg(readAndTweakConfig(io_cfg, !pts.empty())), snowpackIO(sn_cfg), dimx(dem_in.getNx()), dimy(dem_in.getNy()), mpi_offset(0), mpi_nx(dimx),
                   landuse(landuse_in), mns(dem_in, IOUtils::nodata), shortwave(dem_in, IOUtils::nodata), longwave(dem_in, IOUtils::nodata), diffuse(dem_in, IOUtils::nodata),
-                  view_factor(dem_in, IOUtils::nodata), terrain_shortwave(dem_in, IOUtils::nodata), terrain_longwave(dem_in, IOUtils::nodata),
+                  terrain_shortwave(dem_in, IOUtils::nodata), terrain_longwave(dem_in, IOUtils::nodata),
                   psum(dem_in, IOUtils::nodata), psum_ph(dem_in, IOUtils::nodata), psum_tech(dem_in, IOUtils::nodata), grooming(dem_in, IOUtils::nodata),
                   vw(dem_in, IOUtils::nodata), dw(dem_in, IOUtils::nodata), rh(dem_in, IOUtils::nodata), ta(dem_in, IOUtils::nodata), init_glaciers_height(dem_in, IOUtils::nodata),
                   solarElevation(0.), output_grids(), workers(nbworkers), worker_startx(nbworkers), worker_deltax(nbworkers), worker_stations_coord(nbworkers),
@@ -274,9 +274,8 @@ SnowpackInterface& SnowpackInterface::operator=(const SnowpackInterface& source)
 		shortwave = source.shortwave;
 		longwave = source.longwave;
 		diffuse = source.diffuse;
-    view_factor = source.view_factor;
-    terrain_shortwave = source.terrain_shortwave;
-    terrain_longwave = source.terrain_longwave;
+		terrain_shortwave = source.terrain_shortwave;
+		terrain_longwave = source.terrain_longwave;
 		psum = source.psum;
 		psum_ph = source.psum_ph;
 		psum_tech = source.psum_tech;
@@ -708,7 +707,7 @@ void SnowpackInterface::setMeteo(const Grid2DObject& new_psum, const Grid2DObjec
  */
 void SnowpackInterface::setRadiationComponents(const mio::Array2D<double>& shortwave_in,
      const mio::Array2D<double>& longwave_in, const mio::Array2D<double>& diff_in,
-     const mio::Array2D<double>& view_factor_in, const mio::Array2D<double>& terrain_shortwave_in,
+     const mio::Array2D<double>& terrain_shortwave_in,
      const mio::Array2D<double>& terrain_longwave_in,
      const double& solarElevation_in, const mio::Date& timestamp)
 {
@@ -723,9 +722,8 @@ void SnowpackInterface::setRadiationComponents(const mio::Array2D<double>& short
 	shortwave.grid2D = shortwave_in;
 	longwave.grid2D = longwave_in;
 	diffuse.grid2D = diff_in;
-  view_factor.grid2D = view_factor_in;
-  terrain_shortwave.grid2D = terrain_shortwave_in;
-  terrain_longwave.grid2D = terrain_longwave_in;
+	terrain_shortwave.grid2D = terrain_shortwave_in;
+	terrain_longwave.grid2D = terrain_longwave_in;
 
 	solarElevation = solarElevation_in;
 
