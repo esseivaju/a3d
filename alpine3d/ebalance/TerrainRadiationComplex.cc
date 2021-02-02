@@ -55,6 +55,8 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 		endx = dimx - 1;
 	}
 
+	std::cout << "[i] In TerrainRadiationComplex: Process " << MPIControl::instance().rank() << " working on slice (" << startx << ", " << endx << ")" << std::endl;
+
 	S = M_epsilon * M_phi; // Number of vectors per Basic Set
 
 	if (cfg.keyExists("Complex_Anisotropy", "Ebalance"))
@@ -113,27 +115,23 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 		_hasSP=true;
 	}
 
+	initBasicSetHorizontal();
+	std::cout << "[i] Initialized BasicSetHorizontal" << std::endl;
+	initBasicSetRotated();
+	std::cout << "[i] Initialized BasicSetRotated" << std::endl;
+
 	// Initialise based on ViewList
 	bool succesful_read = false;
 	if (if_read_view_list)
 	{
-
 		succesful_read = ReadViewList();
-		initBasicSetHorizontal();
-		initBasicSetRotated();
 	}
-
 	// Initialise from scratch
 	if (!succesful_read)
 	{
-
-		initBasicSetHorizontal();
-		std::cout << "[i] Initialized BasicSetHorizontal" << std::endl;
-		initBasicSetRotated();
-		std::cout << "[i] Initialized BasicSetRotated" << std::endl;
 		initViewList();
-		std::cout << "[i] Initialized ViewList" << std::endl;
 	}
+	std::cout << "[i] Initialized ViewList" << std::endl;
 
 	// Initialise Speed-up
 	initRList();
@@ -442,7 +440,8 @@ void TerrainRadiationComplex::initSortList()
 void TerrainRadiationComplex::WriteViewList()
 {
 	std::ofstream GL_file;
-	GL_file.open("../output/ViewList.rad");
+	const std::string filename = cfg.get("Complex_ViewListFile", "Ebalance");
+	GL_file.open(filename);
 	GL_file.precision(std::numeric_limits<double>::digits10);
 	GL_file << "SMET 1.1 ASCII\n[HEADER]\n";
 	GL_file << "ncols =\t" << dimx << "\n";
@@ -625,6 +624,7 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 	Vec3D z_axis = {0, 0, 1};
 
 // Calculate [MT eq. 2.96] and all Elements thereof
+// --> Initialize direct_temp, diffuse_temp, TList_sky_aniso, TList_sky_iso, TList_direct
 #pragma omp parallel for
 	for (size_t ii = startx; ii < endx; ++ii)
 	{
@@ -735,6 +735,8 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 		}
 	}
 
+	mpicontrol.allreduce_sum(TList_sky_aniso);
+
 	///////////////////////////////
 	///// LAND MAIN LOOP [MT eq. 2.97]
 
@@ -745,11 +747,10 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 
 	while (another_round && a_sun[2] > 0)
 	{
-
 		TList_ms_old = TList_ms_new + TList_sky_aniso;
 		terrain_flux_old = terrain_flux_new;
-		TList_ms_new=0;
-		terrain_flux_new=0;
+		TList_ms_new = 0;
+		terrain_flux_new = 0;
 
 #pragma omp parallel for
 		for (size_t ii = startx; ii < endx; ++ii)
@@ -800,21 +801,23 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 			}
 		}
 
+		mpicontrol.allreduce_sum(terrain_flux_new);
+		mpicontrol.allreduce_sum(TList_ms_new);
+
 		// Test if convergence is below treshold [MT eq. 2.100]
 		if (number_rounds != 0 && TerrainBiggestDifference(terrain_flux_new, terrain_flux_old) < delta_F_max)
 			another_round = 0;
 		++number_rounds;
 		std::cout << "[i] TerrainRadiationComplex: Done " << number_rounds << " Full Iteration(s). Domain Average is now " << terrain_flux_new.getMean() << " W/m2.\n";
 	}
-
 	// last (if multiple scattering) or only (if no multiple scattering) Iteration.
 	// Very similar to Land-Main-Loop, but no speed up in core loop as data is prepared for SolarPanel-class
 	if (a_sun[2] > 0)
 	{
 		TList_ms_old = TList_ms_new + TList_sky_aniso;
 		terrain_flux_old = terrain_flux_new;
-		TList_ms_new=0;
-		terrain_flux_new=0;
+		TList_ms_new = 0;
+		terrain_flux_new = 0;
 
 #pragma omp parallel for
 		for (size_t ii = startx; ii < endx; ++ii)
@@ -866,8 +869,12 @@ void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, m
 	}
 
 	// If SolarPanel-module is used, send all needed data
-	if (_hasSP)
+	if (_hasSP){
+		mpicontrol.allreduce_sum(TList_sky_iso);
+		mpicontrol.allreduce_sum(TList_direct);
+		mpicontrol.allreduce_sum(TList_ms_new);
 		SP.setTLists(TList_direct, TList_sky_iso, TList_sky_aniso, TList_ms_new + TList_sky_aniso);
+	}
 
 // Average both triangles to one DEM-Gridpoint-Value for further Alpine3D use
 #pragma omp parallel for
@@ -1149,7 +1156,7 @@ double TerrainRadiationComplex::TerrainBiggestDifference(const mio::Array3D<doub
 
 	double max_diff = 0, diff;
 
-	for (size_t ii = startx; ii < endx; ++ii)
+	for (size_t ii = 1; ii < dimx - 1; ++ii)
 	{
 		for (size_t jj = 1; jj < dimy - 1; ++jj)
 		{
