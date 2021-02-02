@@ -33,15 +33,6 @@ TerrainRadiationSimple::TerrainRadiationSimple(const mio::Config& i_cfg, const m
 
 	initSkyViewFactor(dem_in);
 
-  bool write_sky_vf=false;
-  i_cfg.getValue("WRITE_SKY_VIEW_FACTOR", "output", write_sky_vf,IOUtils::nothrow);
-
-  if(MPIControl::instance().master() && write_sky_vf){
-    std::cout << "[i] Writing sky view factor grid" << std::endl;
-    mio::IOManager io(i_cfg);
-    io.write2DGrid(mio::Grid2DObject(dem_in.cellsize,dem_in.llcorner,sky_vf), "SKY_VIEW_FACTOR");
-  }
-
 }
 
 TerrainRadiationSimple::~TerrainRadiationSimple() {}
@@ -49,7 +40,6 @@ TerrainRadiationSimple::~TerrainRadiationSimple() {}
 void TerrainRadiationSimple::getRadiation(const mio::Array2D<double>& direct,
                                           mio::Array2D<double>& diffuse, mio::Array2D<double>& terrain,
                                           mio::Array2D<double>& direct_unshaded_horizontal,
-                                          mio::Array2D<double>& view_factor,
                                           double solarAzimuth, double solarElevation)
 {
 	MPIControl& mpicontrol = MPIControl::instance();
@@ -80,7 +70,6 @@ void TerrainRadiationSimple::getRadiation(const mio::Array2D<double>& direct,
 	mpicontrol.allreduce_sum(terrain);
 	mpicontrol.allreduce_sum(diff_corr);
 	diffuse = diff_corr; //return the corrected diffuse radiation
-  getSkyViewFactor(view_factor);
 }
 
 
@@ -95,6 +84,7 @@ void TerrainRadiationSimple::setMeteo(const mio::Array2D<double>& albedo,
 
 void TerrainRadiationSimple::getSkyViewFactor(mio::Array2D<double> &o_sky_vf) {
 	o_sky_vf = sky_vf;
+	MPIControl::instance().allreduce_sum(o_sky_vf);
 }
 
 void TerrainRadiationSimple::initSkyViewFactor(const mio::DEMObject &dem)

@@ -145,17 +145,6 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 	if (_hasSP)
 		SP.initTerrain(M_epsilon, M_phi); // Link SolarPanel-object to ViewList
 
-	bool write_sky_vf = false;
-	cfg.getValue("WRITE_SKY_VIEW_FACTOR", "output", write_sky_vf, IOUtils::nothrow);
-
-	if (MPIControl::instance().master() && write_sky_vf)
-	{
-		std::cout << "[i] Writing sky view factor grid" << std::endl;
-		mio::Array2D<double> sky_vf(dimx, dimy);
-		getSkyViewFactor(sky_vf);
-		mio::IOManager io(cfg_in);
-		io.write2DGrid(mio::Grid2DObject(dem_in.cellsize, dem_in.llcorner, sky_vf), "SKY_VIEW_FACTOR");
-	}
 }
 
 TerrainRadiationComplex::~TerrainRadiationComplex() {}
@@ -606,7 +595,7 @@ bool TerrainRadiationComplex::ReadViewList()
 */
 void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
                                            mio::Array2D<double> &terrain, mio::Array2D<double>
-                                           &direct_unshaded_horizontal, mio::Array2D<double> &view_factor,
+                                           &direct_unshaded_horizontal,
                                            double solarAzimuth, double solarElevation)
 {
 	MPIControl &mpicontrol = MPIControl::instance();
@@ -1131,6 +1120,7 @@ double TerrainRadiationComplex::computeSkyViewFactor(size_t ii_dem, size_t jj_de
 void TerrainRadiationComplex::getSkyViewFactor(mio::Array2D<double> &o_sky_vf)
 {
 	o_sky_vf = sky_vf_mean;
+	MPIControl::instance().allreduce_sum(o_sky_vf);
 }
 
 double TerrainRadiationComplex::getSkyViewFactor(size_t ii_dem, size_t jj_dem, size_t which_triangle)

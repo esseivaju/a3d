@@ -160,7 +160,6 @@ class Runoff; // forward declaration, cyclic header include
 		void setRadiationComponents(const mio::Array2D<double>& shortw,
 		                            const mio::Array2D<double>& longwave,
 		                            const mio::Array2D<double>& diff,
-                                const mio::Array2D<double>& view_factor_in,
                                 const mio::Array2D<double>& terrain_shortwave_in,
                                 const mio::Array2D<double>& terrain_longwave_in,
 		                            const double& solarElevation,
@@ -224,7 +223,7 @@ class Runoff; // forward declaration, cyclic header include
 		size_t mpi_offset, mpi_nx;
 		mio::Grid2DObject landuse;
 		// meteo forcing variables
-		mio::Grid2DObject mns, shortwave, longwave, diffuse, view_factor, terrain_shortwave, terrain_longwave;
+		mio::Grid2DObject mns, shortwave, longwave, diffuse, terrain_shortwave, terrain_longwave;
 		mio::Grid2DObject psum, psum_ph, psum_tech, grooming, vw, dw, rh, ta, init_glaciers_height;
 		double solarElevation;
 
