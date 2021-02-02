@@ -105,7 +105,6 @@ void TerrainRadiationSimple::setMeteo(const mio::Array2D<double>& albedo, const 
 }
 
 void TerrainRadiationSimple::getSkyViewFactor(mio::Array2D<double> &o_sky_vf) {
-//	std::cout << sky_vf.toString() << std::endl;
 	o_sky_vf = sky_vf;
 	MPIControl::instance().allreduce_sum(o_sky_vf);
 }
