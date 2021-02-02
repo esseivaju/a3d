@@ -70,6 +70,7 @@ void TerrainRadiationHelbig::getRadiation(const mio::Array2D<double>& direct, mi
 
 void TerrainRadiationHelbig::getSkyViewFactor(mio::Array2D<double> &o_sky_vf) {
 	viewFactorsHelbigObj.getSkyViewFactor(o_sky_vf);
+	MPIControl::instance().allreduce_sum(o_sky_vf);
 }
 
 void TerrainRadiationHelbig::setMeteo(const mio::Array2D<double> &albedo,const mio::Array2D<double> &ta,const mio::Array2D<double> &rh,const mio::Array2D<double> &ilwr)

@@ -57,12 +57,13 @@ EnergyBalance::EnergyBalance(const unsigned int& i_nbworkers, const mio::Config&
 	bool write_sky_vf=false;
 	cfg.getValue("WRITE_SKY_VIEW_FACTOR", "output", write_sky_vf,IOUtils::nothrow);
 
-	if(MPIControl::instance().master() && write_sky_vf){
+	if(write_sky_vf){
 		std::cout << "[i] Writing sky view factor grid" << std::endl;
 		mio::IOManager io(cfg);
-		mio::Array2D<double> sky_vf(dimx,dimy,mio::IOUtils::nodata);
+		mio::Array2D<double> sky_vf(dimx,dimy,0);
 		terrain_radiation->getSkyViewFactor(sky_vf);
-		io.write2DGrid(mio::Grid2DObject(dem_in.cellsize,dem_in.llcorner,sky_vf), "SKY_VIEW_FACTOR");
+		if(MPIControl::instance().master())
+			io.write2DGrid(mio::Grid2DObject(dem_in.cellsize,dem_in.llcorner,sky_vf), "SKY_VIEW_FACTOR");
 	}
 }
 

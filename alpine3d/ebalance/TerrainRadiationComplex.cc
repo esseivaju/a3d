@@ -1118,6 +1118,7 @@ double TerrainRadiationComplex::computeSkyViewFactor(size_t ii_dem, size_t jj_de
 void TerrainRadiationComplex::getSkyViewFactor(mio::Array2D<double> &o_sky_vf)
 {
 	o_sky_vf = sky_vf_mean;
+	MPIControl::instance().allreduce_sum(o_sky_vf);
 }
 
 double TerrainRadiationComplex::getSkyViewFactor(size_t ii_dem, size_t jj_dem, size_t which_triangle)

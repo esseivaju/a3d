@@ -22,7 +22,7 @@ using namespace mio;
 
 TerrainRadiationSimple::TerrainRadiationSimple(const mio::Config& i_cfg, const mio::DEMObject& dem_in, const std::string& method)
 					  : TerrainRadiationAlgorithm(method),
-						albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata), sky_vf(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
+						albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata), sky_vf(dem_in.getNx(), dem_in.getNy(), 0),
 						dimx(dem_in.getNx()), dimy(dem_in.getNy()), startx(0), endx(dimx)
 {
 	// In case we're running with MPI enabled, calculate the slice this process is responsible for
@@ -105,7 +105,9 @@ void TerrainRadiationSimple::setMeteo(const mio::Array2D<double>& albedo, const 
 }
 
 void TerrainRadiationSimple::getSkyViewFactor(mio::Array2D<double> &o_sky_vf) {
+//	std::cout << sky_vf.toString() << std::endl;
 	o_sky_vf = sky_vf;
+	MPIControl::instance().allreduce_sum(o_sky_vf);
 }
 
 void TerrainRadiationSimple::initSkyViewFactor(const mio::DEMObject &dem)
