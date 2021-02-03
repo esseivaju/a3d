@@ -47,13 +47,11 @@ EnergyBalance::EnergyBalance(const unsigned int& i_nbworkers, const mio::Config&
 	" process(es) with " << nbworkers << " worker(s) each\n";
 
 	// Every MPI process will have its own copy of terrain_radiation object with full DEM
-	const bool enable_terrain_radiation = cfg.get("Terrain_Radiation", "EBalance");
-	if (enable_terrain_radiation) {
-		terrain_radiation = TerrainRadiationFactory::getAlgorithm(cfg, dem, nbworkers);
-		const std::string algo = terrain_radiation->algo;
-		if (instance.master())
-			std::cout << "[i] Using terrain radiation with model: " << algo << "\n";
-	}
+	terrain_radiation = TerrainRadiationFactory::getAlgorithm(cfg, dem, nbworkers);
+	const std::string algo = terrain_radiation->algo;
+	if (instance.master())
+		std::cout << "[i] Using terrain radiation with model: " << algo << "\n";
+
 	bool write_sky_vf=false;
 	cfg.getValue("WRITE_SKY_VIEW_FACTOR", "output", write_sky_vf,IOUtils::nothrow);
 
