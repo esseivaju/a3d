@@ -39,11 +39,12 @@ class TerrainRadiationAlgorithm {
 		TerrainRadiationAlgorithm(const std::string& i_algo) : algo(i_algo), _hasSP(false) {}
 		virtual ~TerrainRadiationAlgorithm();
 		const bool hasSP(){return _hasSP;}
-		virtual void getRadiation(const mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
-                              mio::Array2D<double>& terrain, mio::Array2D<double>& direct_unshaded_horizontal,
-                              double solarAzimuth, double solarElevation) = 0;
-		virtual void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& ta,
-		                      const mio::Array2D<double>& rh, const mio::Array2D<double>& ilwr) = 0;
+		virtual void getRadiation(mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
+                              mio::Array2D<double>& terrain, const mio::Array2D<double>& direct_unshaded_horizontal,
+                              const mio::Array2D<double>& total_ilwr, mio::Array2D<double>& sky_ilwr,
+                              mio::Array2D<double>& terrain_ilwr, double solarAzimuth, double solarElevation) = 0;
+		virtual void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& ta) = 0;
+
 		const std::string algo;
 		virtual void setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation){};
 		virtual void writeSP(const unsigned int max_steps){};

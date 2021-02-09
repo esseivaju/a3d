@@ -69,8 +69,12 @@ public:
 	TerrainRadiationComplex(const mio::Config &cfg, const mio::DEMObject &dem_in, const std::string &method);
 	~TerrainRadiationComplex();
 
-	void getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse, mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal, double solarAzimuth, double solarElevation);
-	void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &ta, const mio::Array2D<double> &rh, const mio::Array2D<double> &ilwr);
+	virtual void getRadiation(mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
+                            mio::Array2D<double>& terrain, const mio::Array2D<double>& direct_unshaded_horizontal,
+                            const mio::Array2D<double>& total_ilwr, mio::Array2D<double>& sky_ilwr,
+                            mio::Array2D<double>& terrain_ilwr, double solarAzimuth, double solarElevation);
+	virtual void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& ta);
+
 	void getSkyViewFactor(mio::Array2D<double> &o_sky_vf);
 	void setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation);
 	void writeSP(const unsigned int max_steps);

@@ -129,7 +129,8 @@ void EnergyBalance::setStations(const std::vector<mio::MeteoData>& in_vecMeteo)
 }
 
 void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
-                             const mio::Grid2DObject& in_ta, const mio::Grid2DObject& in_rh, const mio::Grid2DObject& in_p, const mio::Date timestamp)
+                             const mio::Grid2DObject& in_ta, const mio::Grid2DObject& in_rh,
+                             const mio::Grid2DObject& in_p, const mio::Date timestamp)
 {
 	timer.restart();
 
@@ -158,11 +159,15 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 	if (hasSP())
 		terrain_radiation->setSP(radfields[0].getDate(), solarAzimuth, solarElevation);
 
+	mio::Array2D<double> sky_ilwr(in_ilwr.grid2D);
+	mio::Array2D<double> terrain_ilwr(in_ilwr.grid2D);
+	sky_ilwr=0;
+	terrain_ilwr=0;
 	if (terrain_radiation) {
 		// note: parallelization has to take place inside the TerrainRadiationAlgorithm implementations
-		terrain_radiation->setMeteo(albedo.grid2D, in_ta.grid2D, in_rh.grid2D, in_ilwr.grid2D);
+		terrain_radiation->setMeteo(albedo.grid2D, in_ta.grid2D);
 		terrain_radiation->getRadiation(direct, diffuse, reflected, direct_unshaded_horizontal,
-                                    solarAzimuth, solarElevation);
+                                    in_ilwr.grid2D,sky_ilwr,terrain_ilwr, solarAzimuth, solarElevation);
 	}
 
 	if (MPIControl::instance().master())
@@ -177,7 +182,7 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 		timer.stop();
 		try {
 			snowpack->setRadiationComponents(global, ilwr, diffuse, reflected,
-                                       in_ilwr.grid2D,  solarElevation, timestamp); //this triggers Snowpack calculation
+                                       terrain_ilwr, solarElevation, timestamp); //this triggers Snowpack calculation
 		} catch(std::exception& e) {
 			std::cout << "[E] Exception in snowpack->setRadiationComponents()\n";
 			cout << e.what() << endl;

@@ -77,11 +77,12 @@ class TerrainRadiationHelbig: public TerrainRadiationAlgorithm {
 	public:
 		TerrainRadiationHelbig(const mio::Config& i_cfg, const mio::DEMObject& dem_in, const int& i_nbworkers, const std::string& method);
 
-		void getRadiation(const mio::Array2D<double>& direct, mio::Array2D<double>& diffuse, mio::Array2D<double>& terrain,
-                      mio::Array2D<double>& direct_unshaded_horizontal,
-                      double solarAzimuth, double solarElevation);
-		void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& ta,
-		              const mio::Array2D<double>& rh, const mio::Array2D<double>& ilwr);
+		virtual void getRadiation(mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
+	                            mio::Array2D<double>& terrain, const mio::Array2D<double>& direct_unshaded_horizontal,
+	                            const mio::Array2D<double>& total_ilwr, mio::Array2D<double>& sky_ilwr,
+	                            mio::Array2D<double>& terrain_ilwr, double solarAzimuth, double solarElevation);
+		virtual void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& ta);
+
 		void getSkyViewFactor(mio::Array2D<double> &o_sky_vf);
 
 
@@ -99,7 +100,7 @@ class TerrainRadiationHelbig: public TerrainRadiationAlgorithm {
 		int LW_distance_index;			//for LW: index of the maximum emitting distance
 		const static int NB_UNROLL = 3; //Define the number of unrolled calculation in loop to LWTerrainRadiationStep
 
-		mio::Array2D<double> meteo2d_ta, meteo2d_rh;
+		mio::Array2D<double> meteo2d_ta,albedo_grid;
 		mio::Array2D<double> lw_t,lwi, lw_sky;
 
 		double lw_eps_stern;			//stopping criterion
@@ -109,7 +110,7 @@ class TerrainRadiationHelbig: public TerrainRadiationAlgorithm {
 		double itEps_LW;
 		double max_alb;              // max ground albedo
 
-		mio::Array2D<double> total_diff, tdir, tdiff, sw_t, glob_start, glob_h_isovf, glob_h, t_snowold, total_terrain;
+		mio::Array2D<double> total_diff, tdir, tdiff, sw_t, glob_start, glob_h_isovf, glob_h, t_snowold, total_terrain, tot_ilwr;
 		//SnowpackInterface *snowpack;
 
 		double lw_start_l1;
@@ -121,8 +122,6 @@ class TerrainRadiationHelbig: public TerrainRadiationAlgorithm {
 		ViewFactorsCluster viewFactorsClusterObj;
 		//mio::Array2D<double> tdir;
 		//mio::Array2D<double> tdiff;
-
-		mio::Array2D<double> albedo_grid, meteo2d_ilwr;
 
 		std::vector<CellsList> lwt_byCell;
 
