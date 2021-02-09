@@ -37,9 +37,11 @@ TerrainRadiationSimple::TerrainRadiationSimple(const mio::Config& i_cfg, const m
 
 TerrainRadiationSimple::~TerrainRadiationSimple() {}
 
-void TerrainRadiationSimple::getRadiation(const mio::Array2D<double>& direct,
+void TerrainRadiationSimple::getRadiation(mio::Array2D<double>& direct,
                                           mio::Array2D<double>& diffuse, mio::Array2D<double>& terrain,
-                                          mio::Array2D<double>& direct_unshaded_horizontal,
+                                          const mio::Array2D<double>& direct_unshaded_horizontal,
+                                          const mio::Array2D<double>& total_ilwr, mio::Array2D<double>& sky_ilwr,
+                                          mio::Array2D<double>& terrain_ilwr,
                                           double solarAzimuth, double solarElevation)
 {
 	MPIControl& mpicontrol = MPIControl::instance();

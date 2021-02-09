@@ -592,9 +592,10 @@ bool TerrainRadiationComplex::ReadViewList()
 * @param[out] -
 *
 */
-void TerrainRadiationComplex::getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
-                                           mio::Array2D<double> &terrain, mio::Array2D<double>
-                                           &direct_unshaded_horizontal,
+void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Array2D<double> &diffuse,
+                                           mio::Array2D<double> &terrain, const mio::Array2D<double>
+                                           &direct_unshaded_horizontal, const mio::Array2D<double>& total_ilwr,
+                                           mio::Array2D<double>& sky_ilwr, mio::Array2D<double>& terrain_ilwr,
                                            double solarAzimuth, double solarElevation)
 {
 	MPIControl &mpicontrol = MPIControl::instance();

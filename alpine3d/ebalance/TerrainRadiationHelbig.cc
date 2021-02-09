@@ -55,14 +55,16 @@ TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config& cfg, const mio
 
 }
 
-void TerrainRadiationHelbig::getRadiation(const mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
-                                          mio::Array2D<double>& terrain, mio::Array2D<double>&
-                                          direct_unshaded_horizontal,
+void TerrainRadiationHelbig::getRadiation(mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
+                                          mio::Array2D<double>& terrain, const mio::Array2D<double>&
+                                          direct_unshaded_horizontal, const mio::Array2D<double>& total_ilwr,
+                                          mio::Array2D<double>& sky_ilwr, mio::Array2D<double>& terrain_ilwr,
                                           double solarAzimuth, double solarElevation)
 {
 		std::cout << "[i] Computing Helbig radiation" << std::endl;
 		tdir = direct;
 		tdiff = diffuse;
+		tot_ilwr=total_ilwr;
 		Compute();
 		terrain = total_terrain;
 		diffuse=tdiff;
@@ -79,8 +81,6 @@ void TerrainRadiationHelbig::setMeteo(const mio::Array2D<double>& albedo,
                                       const mio::Array2D<double>& ilwr)
 {
 		meteo2d_ta = ta;
-		meteo2d_rh = rh;
-		meteo2d_ilwr = ilwr;
 		albedo_grid = albedo;
 		max_alb = albedo_grid.getMax();
 }
@@ -513,10 +513,6 @@ void TerrainRadiationHelbig::InitializeTerrainRadiation(const bool& day, int& i_
 				InitializeTerrainSwSplitting(i, j, i_max_unshoot, j_max_unshoot, diffmax_sw);
 			}
 			//compute long wave radiation
-			// saturation vapor pressure in Pa (routine in snowpack)
-			//const double e_stern = mio::Atmosphere::vaporSaturationPressure( meteo2d_ta(i,j) );
-			// wvp = water vapor pressure
-			//const double wvp = meteo2d_rh(i,j) * e_stern;
 			//Long Wave initialization
 
 			//InitializeLW(i, j); ---> TO PUT BACK ?
@@ -602,7 +598,7 @@ void TerrainRadiationHelbig::fillSWResultsGrids(const bool& day) {
 				// TOTAL incident shortwave diffuse radiation
 				//std::cout << tdiff(i,j) << " " << glob_h(i,j) << " " << glob_start(i,j) << " " << albedo_grid(i,j) << std::endl;
 				if (albedo_grid(i,j) > 0)
-          total_diff(i,j) = tdiff(i,j) + glob_h(i,j) - (glob_start(i,j) / albedo_grid(i,j));
+					total_diff(i,j) = tdiff(i,j) + glob_h(i,j) - (glob_start(i,j) / albedo_grid(i,j));
 			}
 		}
 	} else {
@@ -620,7 +616,7 @@ void TerrainRadiationHelbig::InitializeLW (const int i, const int j)
 {
 	// longwave sky radiation calculation
 	//lw_sky(i,j) = SkyLW (wvp, meteo2D(i,j).ta, sky_vf(i,j), ea_ref); //read cloud cover input from MeteoIO?!
-	lw_sky(i,j) = meteo2d_ilwr(i,j)*viewFactorsHelbigObj.getSkyViewFactor(i,j);
+	lw_sky(i,j) = tot_ilwr(i,j)*viewFactorsHelbigObj.getSkyViewFactor(i,j);
 	lwi(i,j) = lw_sky(i,j);
 
 	// longwave radiation of ij emittable to the surrounding terrain without attenuation and view factor
