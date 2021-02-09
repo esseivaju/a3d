@@ -29,12 +29,14 @@
 #include <ctime>
 
 //Optimisation #6 by GS : Function to sort CellList's array by radiation
-inline int CellsRadComparator_Helbig(const void * cell1, const void * cell2)
+inline int CellsRadComparator_Helbig(const void *cell1, const void *cell2)
 {
 	const double c1 = ((CellsList *)cell1)->radiation;
 	const double c2 = ((CellsList *)cell2)->radiation;
-	if (c1 > c2) return -1;
-	if (c1 < c2) return 1;
+	if (c1 > c2)
+		return -1;
+	if (c1 < c2)
+		return 1;
 	return 0;
 }
 
@@ -72,74 +74,66 @@ inline int CellsRadComparator_Helbig(const void * cell1, const void * cell2)
  *       - tvfarea: file containing the terrain view factors x surface
  *
  */
-class TerrainRadiationHelbig: public TerrainRadiationAlgorithm {
+class TerrainRadiationHelbig : public TerrainRadiationAlgorithm
+{
 
-	public:
-		TerrainRadiationHelbig(const mio::Config& i_cfg, const mio::DEMObject& dem_in, const int& i_nbworkers, const std::string& method);
+public:
+	TerrainRadiationHelbig(const mio::Config &i_cfg, const mio::DEMObject &dem_in, const int &i_nbworkers, const std::string &method);
 
-		virtual void getRadiation(mio::Array2D<double>& direct, mio::Array2D<double>& diffuse,
-	                            mio::Array2D<double>& terrain, const mio::Array2D<double>& direct_unshaded_horizontal,
-	                            const mio::Array2D<double>& total_ilwr, mio::Array2D<double>& sky_ilwr,
-	                            mio::Array2D<double>& terrain_ilwr, double solarAzimuth, double solarElevation);
-		virtual void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& ta);
+	virtual void getRadiation(mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
+							  mio::Array2D<double> &terrain, const mio::Array2D<double> &direct_unshaded_horizontal,
+							  const mio::Array2D<double> &total_ilwr, mio::Array2D<double> &sky_ilwr,
+							  mio::Array2D<double> &terrain_ilwr, double solarAzimuth, double solarElevation);
+	virtual void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &ta);
 
-		void getSkyViewFactor(mio::Array2D<double> &o_sky_vf);
+private:
+	mio::DEMObject dem;
+	double sw_radius;
+	double lw_radius;
 
+	int dimx, dimy;
+	double cellsize;
 
-	private:
-		mio::DEMObject dem;
-		//double iswr_ref;
-		//double ea_ref;
-		double sw_radius;
+	double itEps1_SW;
+	double mean_glob_start;			// mean reflectable direct and diffuse sky shortwave radiation
+	int LW_distance_index;			//for LW: index of the maximum emitting distance
+	const static int NB_UNROLL = 3; //Define the number of unrolled calculation in loop to LWTerrainRadiationStep
 
-		int dimx, dimy;
-		double cellsize;
+	mio::Array2D<double> meteo2d_ta, albedo_grid;
+	mio::Array2D<double> lw_t, lwi, lw_sky;
 
-		double itEps1_SW;
-		double mean_glob_start;      // mean reflectable direct and diffuse sky shortwave radiation
-		int LW_distance_index;			//for LW: index of the maximum emitting distance
-		const static int NB_UNROLL = 3; //Define the number of unrolled calculation in loop to LWTerrainRadiationStep
+	double lw_eps_stern;   //stopping criterion
+	double max_glob_start; // maximum of reflectable direct and diffuse sky shortwave radiation
 
-		mio::Array2D<double> meteo2d_ta,albedo_grid;
-		mio::Array2D<double> lw_t,lwi, lw_sky;
+	double itEps_SW;
+	double itEps_LW;
+	double max_alb; // max ground albedo
 
-		double lw_eps_stern;			//stopping criterion
-		double max_glob_start;       // maximum of reflectable direct and diffuse sky shortwave radiation
+	mio::Array2D<double> total_diff, tdir, tdiff, sw_t, glob_start, glob_h_isovf, glob_h, t_snowold, total_terrain, tot_ilwr;
 
-		double itEps_SW;
-		double itEps_LW;
-		double max_alb;              // max ground albedo
+	double lw_start_l1;
 
-		mio::Array2D<double> total_diff, tdir, tdiff, sw_t, glob_start, glob_h_isovf, glob_h, t_snowold, total_terrain, tot_ilwr;
-		//SnowpackInterface *snowpack;
+	ViewFactorsHelbig viewFactorsHelbigObj;
+	ViewFactorsSectors viewSectorFactorsObj;
+	ViewFactorsCluster viewFactorsClusterObj;
 
-		double lw_start_l1;
+	std::vector<CellsList> lwt_byCell;
 
-		//VFSymetricMatrix<float, double> vf; // view factor matrix with dynamic dimension
+	void Compute();
+	int SWTerrainRadiationStep(const double threshold_itEps_SW, int &i_max_unshoot, int &j_max_unshoot, unsigned int n, const clock_t t0);
+	int LWTerrainRadiationStep(const double threshold_itEps_LW, const int itMax_LW, int &i_max_unshoot_lw, int &j_max_unshoot_lw, unsigned int n, const clock_t t0);
+	void ComputeTerrainRadiation(const bool &day, int i_max_unshoot, int j_max_unshoot, int i_max_unshoot_lw, int j_max_unshoot_lw);
+	void ComputeRadiationBalance();
+	void InitializeTerrainSwSplitting(const int i, const int j,
+									  int &i_max_unshoot, int &j_max_unshoot, double &diffmax_sw);
+	void InitializeTerrainRadiation(const bool &day, int &i_max_unshoot, int &j_max_unshoot, int &i_max_unshoot_lw, int &j_max_unshoot_lw);
+	void fillSWResultsGrids(const bool &day);
 
-		ViewFactorsHelbig viewFactorsHelbigObj;
-		ViewFactorsSectors viewSectorFactorsObj;
-		ViewFactorsCluster viewFactorsClusterObj;
-		//mio::Array2D<double> tdir;
-		//mio::Array2D<double> tdiff;
+	void InitializeLW(const int i, const int j, int &i_max_unshoot_lw, int &j_max_unshoot_lw, double &diffmax_lw);
+	void getSkyViewFactor(mio::Array2D<double> &o_sky_vf);
 
-		std::vector<CellsList> lwt_byCell;
-
-		void Compute();
-		int SWTerrainRadiationStep(const double threshold_itEps_SW, int &c, int &d, unsigned int n, const clock_t t0);
-		int LWTerrainRadiationStep(const double threshold_itEps_LW, const int itMax_LW, const int i_shoot, const int j_shoot, unsigned int n, const clock_t t0);
-		void ComputeTerrainRadiation(const bool& day, int i_max_unshoot, int j_max_unshoot );
-		void ComputeRadiationBalance();
-		void InitializeTerrainSwSplitting(const int i, const int j,
-		                                  int& i_max_unshoot, int& j_max_unshoot, double& diffmax_sw);
-		void InitializeTerrainRadiation(const bool& day, int& i_max_unshoot, int& j_max_unshoot);
-		void fillSWResultsGrids(const bool& day);
-
-		void InitializeLW (const int i, const int j);
-
-		static inline void CalculateIndex(const int indice, const int distance_max, int dim, int * min, int * max);
-		static inline void LWTerrainRadiationCore(const double bx2, const int j_shoot, const double z_shoot, const int j, const double z, const double cellsize, const double t_snow_shoot,const double t_snow_shoot_value ,const double t_a, const double vf, double * lwi, int * s);
-
+	static inline void CalculateIndex(const int indice, const int distance_max, int dim, int *min, int *max);
+	static inline void LWTerrainRadiationCore(const double bx2, const int j_shoot, const double z_shoot, const int j, const double z, const double cellsize, const double t_snow_shoot, const double t_snow_shoot_value, const double t_a, const double vf, double *lwi, int *s);
 };
 
 #endif
