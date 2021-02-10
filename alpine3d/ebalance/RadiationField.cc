@@ -23,15 +23,13 @@
 
 RadiationField::RadiationField()
               : date(), dem(), dem_band(), direct(), diffuse(), Sun(),
-                vecMeta(), vecMd(), vecCorr(), timestamp(),
-                vecClearDirect(), vecClearDiffuse(), vecISWRMeas(), vecCDirect(), vecCDiffuse(),
+                vecMeta(), timestamp(), vecCDirect(), vecCDiffuse(),
                 dem_mean_altitude(0.), cellsize(0.), dem_dimx(0), band_dimx(0), dimy(0), startx(0),
                 day(true), night(false) {}
 
 RadiationField::RadiationField(const mio::DEMObject& in_dem, const size_t& in_startx, const size_t& in_nx)
               : date(), dem(), dem_band(), direct(), diffuse(), Sun(),
-                vecMeta(), vecMd(), vecCorr(), timestamp(),
-                vecClearDirect(), vecClearDiffuse(), vecISWRMeas(),
+                vecMeta(), timestamp(), vecCDirect(), vecCDiffuse(),
                 dem_mean_altitude(0.), cellsize(0.), dem_dimx(0), band_dimx(0), dimy(0), startx(0),
                 day(true), night(false)
 {
@@ -75,13 +73,8 @@ void RadiationField::setStations(const std::vector<mio::MeteoData>& vecMeteo, co
 
 	//reset the state variables
 	vecMeta.clear();
-	// vecMd.clear();
-	// vecCorr.clear();
-  // vecClearDirect.clear();
-  // vecClearDiffuse.clear();
-  // vecISWRMeas.clear();
-  vecCDirect.clear();
-  vecCDiffuse.clear();
+	vecCDirect.clear();
+	vecCDiffuse.clear();
 
 	day = true;
 	night = true;
@@ -96,8 +89,8 @@ void RadiationField::setStations(const std::vector<mio::MeteoData>& vecMeteo, co
 		mio::Coords location( vecMeteo[ii].meta.position );
 		const bool has_meta = (location.getLat()!=mio::IOUtils::nodata) && (location.getLon()!=mio::IOUtils::nodata) && (location.getAltitude()!=mio::IOUtils::nodata);
 		const bool has_meteo = (vecMeteo[ii](mio::MeteoData::ISWR)!=mio::IOUtils::nodata)
-		                                  && (vecMeteo[ii](mio::MeteoData::TA)!=mio::IOUtils::nodata)
-		                                  && (vecMeteo[ii](mio::MeteoData::RH)!=mio::IOUtils::nodata);
+                            && (vecMeteo[ii](mio::MeteoData::TA)!=mio::IOUtils::nodata)
+                            && (vecMeteo[ii](mio::MeteoData::RH)!=mio::IOUtils::nodata);
 		if (has_meta && has_meteo) {
 			const bool in_grid = alb_spatial_mean.gridify(location);
 			double local_albedo{domain_alb};
@@ -115,19 +108,13 @@ void RadiationField::setStations(const std::vector<mio::MeteoData>& vecMeteo, co
 			Sun.calculateRadiation(vecMeteo[ii](mio::MeteoData::TA), vecMeteo[ii](mio::MeteoData::RH), vecMeteo[ii](mio::MeteoData::P), local_albedo);
 			bool local_day, local_night;
 			double Md;
-      const double ISWR_meas = vecMeteo[ii](mio::MeteoData::ISWR);
+			const double ISWR_meas = vecMeteo[ii](mio::MeteoData::ISWR);
 			const double corr = Sun.getCorrectionFactor(ISWR_meas, Md, local_day, local_night);
-			// vecMd.push_back( Md );
 			vecMeta.push_back( vecMeteo[ii].meta );
-      double cell_toa, cell_direct, cell_diffuse;
+			double cell_toa, cell_direct, cell_diffuse;
 			Sun.getHorizontalRadiation(cell_toa, cell_direct, cell_diffuse);
-      //vecClearDirect.push_back( cell_direct );
-			//vecClearDiffuse.push_back( cell_diffuse );
-      //vecISWRMeas.push_back(vecMeteo[ii](mio::MeteoData::ISWR));
-
-      vecCDirect.push_back(cell_direct>0?ISWR_meas*(1-Md)/cell_direct:0);
-      vecCDiffuse.push_back(cell_diffuse>0?ISWR_meas*Md/cell_diffuse:0);
-
+			vecCDirect.push_back(cell_direct>0?ISWR_meas*(1-Md)/cell_direct:0);
+			vecCDiffuse.push_back(cell_diffuse>0?ISWR_meas*Md/cell_diffuse:0);
 			day = local_day && day;
 			night = local_night && night;
 		}
@@ -156,18 +143,9 @@ void RadiationField::setMeteo(const mio::Grid2DObject& in_ta, const mio::Grid2DO
 
 	if (night) return; //no iswr at night
 
-	// mio::Grid2DObject Md;
-	// mio::Interpol2D::IDW(vecMd, vecMeta, dem_band, Md, 1000., 1.); //fixed scaling parameter of 1km
-  // mio::Grid2DObject clearDirect;
-	// mio::Interpol2D::IDW(vecClearDirect, vecMeta, dem_band, clearDirect, 1000., 1.); //fixed scaling parameter of 1km
-  // mio::Grid2DObject clearDiffuse;
-	// mio::Interpol2D::IDW(vecClearDiffuse, vecMeta, dem_band, clearDiffuse, 1000., 1.); //fixed scaling parameter of 1km
-  // mio::Grid2DObject ISWRMeas;
-	// mio::Interpol2D::IDW(vecISWRMeas, vecMeta, dem_band, ISWRMeas, 1000., 1.); //fixed scaling parameter of 1km
-
-  mio::Grid2DObject CDirect;
+	mio::Grid2DObject CDirect;
 	mio::Interpol2D::IDW(vecCDirect, vecMeta, dem_band, CDirect, 1000., 1.); //fixed scaling parameter of 1km
-  mio::Grid2DObject CDiffuse;
+	mio::Grid2DObject CDiffuse;
 	mio::Interpol2D::IDW(vecCDiffuse, vecMeta, dem_band, CDiffuse, 1000., 1.); //fixed scaling parameter of 1km
 
 	//get solar position for shading
@@ -188,34 +166,29 @@ void RadiationField::setMeteo(const mio::Grid2DObject& in_ta, const mio::Grid2DO
 			Sun.calculateRadiation(in_ta(i_band,jj), in_rh(i_band,jj), in_p(i_band,jj), alb_spatial_mean(i_band,jj));
 			double cell_toa, cell_direct, cell_diffuse,cell_direct_clear, cell_diffuse_clear, cell_direct_unshaded_horizontal=0;
 
-      //Theoretical clear sky radiations at the pixel
+			//Theoretical clear sky radiations at the pixel
 			Sun.getHorizontalRadiation(cell_toa, cell_direct_clear, cell_diffuse_clear);
 
-      //Apply cloud cover and splitting correction
-      //Implementation 1
-      cell_diffuse = CDiffuse(i_band, jj)*cell_diffuse_clear;
-      cell_direct = CDirect(i_band, jj)*cell_direct_clear;
+			//Apply cloud cover and splitting correction
+			cell_diffuse = CDiffuse(i_band, jj)*cell_diffuse_clear;
+			cell_direct = CDirect(i_band, jj)*cell_direct_clear;
 
-      //Implementation 2
-      //cell_diffuse = clearDiffuse(i_band, jj)>1?ISWRMeas(i_band, jj)*Md(i_band, jj)*cell_diffuse_clear/clearDiffuse(i_band, jj):0;
-      //cell_direct = clearDirect(i_band, jj)>1?ISWRMeas(i_band, jj)*(1.-Md(i_band, jj))*cell_direct_clear/clearDirect(i_band, jj):0;
-
-      cell_direct_unshaded_horizontal=cell_direct;
+			cell_direct_unshaded_horizontal=cell_direct;
 
 			if (day) { // If day, check for shading and do the projection of direct
 				const double tan_horizon = mio::DEMAlgorithms::getHorizon(dem, i_dem, jj, solarAzimuth);
 				if ( tan_sun_elev<tan_horizon ) { //cell is shaded
 					cell_direct = 0.;
 				}
-        else{
-          const double slope_azi=dem.azi(i_dem,jj);
+				else{
+					const double slope_azi=dem.azi(i_dem,jj);
 					const double slope_angle=dem.slope(i_dem,jj);
-          cell_direct = mio::SunTrajectory::projectHorizontalToSlope( solarAzimuth, solarElevation, slope_azi, slope_angle, cell_direct );
+					cell_direct = mio::SunTrajectory::projectHorizontalToSlope( solarAzimuth, solarElevation, slope_azi, slope_angle, cell_direct );
 				}
 			} else { //this is either dawn or dusk, set all radiation to diffuse and the other to 0
 				cell_diffuse += cell_direct;
 				cell_direct=0.;
-        cell_direct_unshaded_horizontal=0;
+				cell_direct_unshaded_horizontal=0;
 			}
 			diffuse(i_band,jj) = cell_diffuse;
 			direct(i_band,jj) = cell_direct;
@@ -228,7 +201,6 @@ void RadiationField::getPositionSun(double& o_solarAzimuth, double& o_solarEleva
 {
 	if (vecMeta.empty())
 		throw mio::InvalidArgumentException("[E] Please set radiation station before getting Sun's position!", AT);
-
 	Sun.position.getHorizontalCoordinates(o_solarAzimuth, o_solarElevation);
 }
 

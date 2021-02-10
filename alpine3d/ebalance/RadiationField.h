@@ -40,11 +40,11 @@ class RadiationField {
 	private:
 		mio::Date date;
 		mio::DEMObject dem;
-		mio::Grid2DObject dem_band, direct, diffuse, direct_unshaded_horizontal; // FELIX: direct_unshaded_horizontal;
+		mio::Grid2DObject dem_band, direct, diffuse, direct_unshaded_horizontal;
 		mio::SunObject Sun;
 		std::vector<mio::StationData> vecMeta;
 		mio::Date timestamp;
-		std::vector<double> vecMd, vecCorr, vecClearDirect, vecClearDiffuse, vecISWRMeas, vecCDirect, vecCDiffuse;
+		std::vector<double> vecCDirect, vecCDiffuse;
 		double dem_mean_altitude;
 		double cellsize;
 		size_t dem_dimx, band_dimx, dimy;
