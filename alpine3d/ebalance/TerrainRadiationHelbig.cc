@@ -26,9 +26,9 @@
 using namespace mio;
 using namespace std;
 
-TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config& cfg, const mio::DEMObject& dem_in, const int&, const std::string& method)
-	: TerrainRadiationAlgorithm(method,dem_in.getNx(), dem_in.getNy()), dem(dem_in), dimx(dem.getNx()), dimy(dem.getNy()), cellsize(dem.cellsize), viewFactorsHelbigObj(cfg, dem_in),
-	  viewSectorFactorsObj(cfg, dem_in), viewFactorsClusterObj(cfg, dem_in), lwt_byCell(dimx*dimy)
+TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config &cfg, const mio::DEMObject &dem_in, const int &, const std::string &method)
+	: TerrainRadiationAlgorithm(method, dem_in.getNx(), dem_in.getNy()), dem(dem_in), dimx(dem.getNx()), dimy(dem.getNy()), cellsize(dem.cellsize), viewFactorsHelbigObj(cfg, dem_in),
+	  viewSectorFactorsObj(cfg, dem_in), viewFactorsClusterObj(cfg, dem_in), lwt_byCell(dimx * dimy)
 {
 	cfg.getValue("itEps_SW", "EBalance", itEps_SW);
 	cfg.getValue("itEps_LW", "EBalance", itEps_LW);
@@ -66,14 +66,14 @@ TerrainRadiationHelbig::TerrainRadiationHelbig(const mio::Config& cfg, const mio
 }
 
 void TerrainRadiationHelbig::getRadiation(const mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
-										  mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal, const mio::Array2D<double> &total_ilwr, mio::Array2D<double> &sky_ilwr,
-										  mio::Array2D<double> &terrain_ilwr,
-										  double solarAzimuth, double solarElevation)
+										  mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal,
+										  const mio::Array2D<double> &total_ilwr, mio::Array2D<double> &sky_ilwr,
+										  mio::Array2D<double> &terrain_ilwr, double solarAzimuth, double solarElevation)
 {
 	std::cout << "[i] Computing Helbig radiation" << std::endl;
 	tdir = direct;
 	tdiff = diffuse;
-	tot_ilwr = terrain_ilwr;
+	tot_ilwr = total_ilwr;
 	Compute();
 	terrain = total_terrain;
 	diffuse = tdiff;
@@ -84,9 +84,7 @@ void TerrainRadiationHelbig::getSkyViewFactor(mio::Array2D<double> &o_sky_vf)
 	viewFactorsHelbigObj.getSkyViewFactor(o_sky_vf);
 }
 
-void TerrainRadiationHelbig::setMeteo(const mio::Array2D<double>& albedo,
-                                      const mio::Array2D<double>& /*alb_spatial_mean*/,
-                                      const mio::Array2D<double>& ta)
+void TerrainRadiationHelbig::setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &alb_spatial_mean, const mio::Array2D<double> &ta)
 {
 	meteo2d_ta = ta;
 	albedo_grid = albedo;
@@ -98,7 +96,7 @@ void TerrainRadiationHelbig::Compute()
 	ComputeRadiationBalance();
 }
 
-int TerrainRadiationHelbig::SWTerrainRadiationStep(const double threshold_itEps_SW, int &i_max_unshoot, int &j_max_unshoot, unsigned int n, const clock_t t0)
+int TerrainRadiationHelbig::SWTerrainRadiationStep(const double threshold_itEps_SW, int &i_max_unshoot, int &j_max_unshoot, unsigned int n, unsigned int s, const clock_t t0)
 {
 	// Computation of shortwave terrain radiation
 	// At every iteration step, a reference grid cell reflects ('shoots') radiation to every other grid cell
@@ -108,7 +106,6 @@ int TerrainRadiationHelbig::SWTerrainRadiationStep(const double threshold_itEps_
 	const double diffmax_thres = 0.;							// threshold for when to stop looking for maximum cells
 	double eps_stern = 0.;										// stopping criterion
 	double be = 0.;												// matrix difference B^(k) - E resp. (L_sky + L_terrain) - L_sky
-	unsigned int s = 0;											// counts gathering patches, i.e. those patches within limited distance radius
 
 	//variable needed to optimize the computational speed
 	const double sw_radius2 = sw_radius * sw_radius;
@@ -173,11 +170,11 @@ int TerrainRadiationHelbig::SWTerrainRadiationStep(const double threshold_itEps_
 	sw_t(i_shoot, j_shoot) = 0.;
 
 	// check for stopping the iteration
-	if (eps_stern <= threshold_itEps_SW || be >= (itEps1_SW *
-												  (mean_glob_start * dimx * dimy)))
+	if (eps_stern <= threshold_itEps_SW || be >= (itEps1_SW * (mean_glob_start * dimx * dimy)))
 	// || diffmax_sw<=diffmax_thres)
 	{
-		printf("[i] EBALANCE: SW converged after n=%u steps eps_stern <= %2.10f be <= %2.10f with %u gathering patches\n", n, eps_stern, be, s);
+		//printf("[i] EBALANCE: SW converged after n=%u steps eps_stern <= %2.2f or be >= %2.2f with %u gathering patches\n", n, eps_stern, be, s);
+		printf("[i] EBALANCE: SW converged after n=%u steps eps_stern <= %2.2f or be >= %2.2f with %u gathering patches\n", n, threshold_itEps_SW, (itEps1_SW * (mean_glob_start * dimx * dimy)), s);
 		printf("    time for SW %f seconds\n", (double)((clock() - t0) / CLOCKS_PER_SEC));
 		fflush(stdout);
 		return 1;
@@ -187,14 +184,12 @@ int TerrainRadiationHelbig::SWTerrainRadiationStep(const double threshold_itEps_
 }
 
 int TerrainRadiationHelbig::LWTerrainRadiationStep(const double threshold_itEps_LW, const int itMax_LW,
-												   int &i_max_unshoot_lw, int &j_max_unshoot_lw, unsigned int n, const clock_t t0)
+												   int &i_max_unshoot_lw, int &j_max_unshoot_lw, unsigned int n, unsigned int s, const clock_t t0)
 {
 
 	// Computation of longwave terrain radiation
 	// At every iteration step, one chosen reference grid cell (*e,*f) reflects ('shoots') radiation to every other grid cell
 	// within a given distance (LW_distance_index in cells units). Every grid cell is only once the emitting cell (no multiple reflections)
-	//counts gathering patches, i.e. those patches within limited distance radius
-	int s = 0;
 	// stopping criterion
 	double eps_stern = 0;
 	// reference product for detecting the grid cell with most unshot longwave radiation
@@ -275,7 +270,8 @@ int TerrainRadiationHelbig::LWTerrainRadiationStep(const double threshold_itEps_
 	// check for stopping the iteration
 	if (eps_stern <= threshold_itEps_LW || (n >= itMax_LW))
 	{
-		printf("[i] EBALANCE: LW converged after n=%u steps eps_stern <= %2.10lf with %u gathering patches\n", n, eps_stern, s);
+		// printf("[i] EBALANCE: LW converged after n=%u steps eps_stern <= %2.2lf with %u gathering patches\n", n, eps_stern, s);
+		printf("[i] EBALANCE: LW converged after n=%u steps eps_stern <= %2.2lf or n >= %u with %u gathering patches\n", n, threshold_itEps_LW, itMax_LW, s);
 		printf("    time for LW %f seconds\n", (double)((clock() - t0) / CLOCKS_PER_SEC));
 		fflush(stdout);
 		return 1;
@@ -289,6 +285,7 @@ void TerrainRadiationHelbig::ComputeTerrainRadiation(const bool &day, int i_max_
 	// a Progressive Refinement Radiosity (e.g. Gortler et al. (1994)
 	// view factors are either stored or computed on the fly (according to vf_in_ram)
 	unsigned int n;			   // counts iteration steps
+	unsigned int s;			   // counts gathering patches, i.e. those patches within limited distance radius
 	double threshold_itEps_SW; // stopping threshold for SW PR iteration
 	double threshold_itEps_LW; // stopping threshold for LW PR iteration
 	int itMax_LW;			   // maximum number of iteration steps for longwave emission
@@ -299,6 +296,7 @@ void TerrainRadiationHelbig::ComputeTerrainRadiation(const bool &day, int i_max_
 	if (day == true)
 	{		   //We compute SWR terrain radiation only during the day
 		n = 0; // iteration step counter
+		s = 0; // gathering patch counter
 		t0 = clock();
 
 		//limits redundant terrain radiation computation to a maximum
@@ -310,10 +308,9 @@ void TerrainRadiationHelbig::ComputeTerrainRadiation(const bool &day, int i_max_
 		// itEps_SW: SW radiosity stopping tolerance
 		// Two options:
 		// epsilon = itEps_SW * |unshot radiosity|_1 sum / faktor y
-		//threshold_itEps_SW = itEps_SW * (mean_glob_start * dimx * dimy) * viewFactorsHelbigObj.min_area
-		//          * viewFactorsHelbigObj.min_vterr * (1. - max_alb) / max_alb;
-		threshold_itEps_SW = itEps_SW * (mean_glob_start * dimx * dimy) * viewFactorsHelbigObj.min_area * viewFactorsHelbigObj.min_vterr * (1 - max_alb * viewFactorsHelbigObj.max_vterr) /
-							 (max_alb * viewFactorsHelbigObj.min_vterr);
+		threshold_itEps_SW = itEps_SW * (mean_glob_start * dimx * dimy) * viewFactorsHelbigObj.min_area * viewFactorsHelbigObj.min_vterr * (1. - max_alb) / max_alb;
+		//threshold_itEps_SW = itEps_SW * (mean_glob_start * dimx * dimy) * viewFactorsHelbigObj.min_area * viewFactorsHelbigObj.min_vterr * (1 - max_alb * viewFactorsHelbigObj.max_vterr) /
+		//					 (max_alb * viewFactorsHelbigObj.min_vterr);
 
 		mio::Timer timer_sw;
 		timer_sw.start();
@@ -322,7 +319,7 @@ void TerrainRadiationHelbig::ComputeTerrainRadiation(const bool &day, int i_max_
 		while (converged != 1)
 		{
 			n++;
-			converged = SWTerrainRadiationStep(threshold_itEps_SW, i_max_unshoot, j_max_unshoot, n, t0);
+			converged = SWTerrainRadiationStep(threshold_itEps_SW, i_max_unshoot, j_max_unshoot, n, s, t0);
 		}
 		timer_sw.stop();
 		std::cout << "calc sw radiation: " << timer_sw.getElapsed() << std::endl;
@@ -331,8 +328,8 @@ void TerrainRadiationHelbig::ComputeTerrainRadiation(const bool &day, int i_max_
 	t0 = clock();
 	// itEps_LW: LW radiosity stopping tolerance
 	// Two options:
-	//threshold_itEps_LW = itEps_LW * lw_start_l1 * viewFactorsHelbigObj.min_area * viewFactorsHelbigObj.min_vterr;
-	threshold_itEps_LW = itEps_LW * lw_start_l1 * viewFactorsHelbigObj.min_area * viewFactorsHelbigObj.min_vterr * (1 - viewFactorsHelbigObj.max_vterr) / (viewFactorsHelbigObj.max_vterr);
+	threshold_itEps_LW = itEps_LW * lw_start_l1 * viewFactorsHelbigObj.min_area * viewFactorsHelbigObj.min_vterr;
+	//threshold_itEps_LW = itEps_LW * lw_start_l1 * viewFactorsHelbigObj.min_area * viewFactorsHelbigObj.min_vterr * (1 - viewFactorsHelbigObj.max_vterr) / (viewFactorsHelbigObj.max_vterr);
 
 	// maximum number of iteration steps for longwave emission is limited to the number of
 	// grid cells per model domain
@@ -341,10 +338,11 @@ void TerrainRadiationHelbig::ComputeTerrainRadiation(const bool &day, int i_max_
 	//---> Block to uncomment to put back LW
 	// converged = 0;
 	// n = 0; // iteration step counter = shooting cell counter
+	// s = 0; // gathering patches counter
 	// while (converged != 1)
 	// {
 	// 	n++;
-	// 	converged = LWTerrainRadiationStep(threshold_itEps_LW, itMax_LW, i_max_unshoot_lw, j_max_unshoot_lw, n, t0);
+	// 	converged = LWTerrainRadiationStep(threshold_itEps_LW, itMax_LW, i_max_unshoot_lw, j_max_unshoot_lw, n, s, t0);
 	// }
 }
 

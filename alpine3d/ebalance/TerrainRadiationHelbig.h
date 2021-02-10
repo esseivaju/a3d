@@ -84,8 +84,7 @@ public:
 							  mio::Array2D<double> &terrain, mio::Array2D<double> &direct_unshaded_horizontal,
 							  const mio::Array2D<double> &total_ilwr, mio::Array2D<double> &sky_ilwr,
 							  mio::Array2D<double> &terrain_ilwr, double solarAzimuth, double solarElevation);
-	void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &alb_spatial_mean,
-				  const mio::Array2D<double> &ta);
+	virtual void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &alb_spatial_mean, const mio::Array2D<double> &ta);
 
 private:
 	mio::DEMObject dem;
@@ -113,16 +112,16 @@ private:
 	mio::Array2D<double> total_diff, tdir, tdiff, sw_t, glob_start, glob_h_isovf, glob_h, t_snowold, total_terrain, tot_ilwr;
 
 	double lw_start_l1;
-	mio::Array2D<double> meteo2d_ilwr;
 
 	ViewFactorsHelbig viewFactorsHelbigObj;
 	ViewFactorsSectors viewSectorFactorsObj;
 	ViewFactorsCluster viewFactorsClusterObj;
+
 	std::vector<CellsList> lwt_byCell;
 
 	void Compute();
-	int SWTerrainRadiationStep(const double threshold_itEps_SW, int &i_max_unshoot, int &j_max_unshoot, unsigned int n, const clock_t t0);
-	int LWTerrainRadiationStep(const double threshold_itEps_LW, const int itMax_LW, int &i_max_unshoot_lw, int &j_max_unshoot_lw, unsigned int n, const clock_t t0);
+	int SWTerrainRadiationStep(const double threshold_itEps_SW, int &i_max_unshoot, int &j_max_unshoot, unsigned int n, unsigned int s, const clock_t t0);
+	int LWTerrainRadiationStep(const double threshold_itEps_LW, const int itMax_LW, int &i_max_unshoot_lw, int &j_max_unshoot_lw, unsigned int n, unsigned int s, const clock_t t0);
 	void ComputeTerrainRadiation(const bool &day, int i_max_unshoot, int j_max_unshoot, int i_max_unshoot_lw, int j_max_unshoot_lw);
 	void ComputeRadiationBalance();
 	void InitializeTerrainSwSplitting(const int i, const int j,
