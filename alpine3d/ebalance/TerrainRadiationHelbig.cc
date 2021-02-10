@@ -337,13 +337,13 @@ void TerrainRadiationHelbig::ComputeTerrainRadiation(const bool &day, int i_max_
 	itMax_LW = dimx * dimy;
 
 	//---> Block to uncomment to put back LW
-	converged = 0;
-	n = 0; // iteration step counter = shooting cell counter
-	while (converged != 1)
-	{
-		n++;
-		converged = LWTerrainRadiationStep(threshold_itEps_LW, itMax_LW, i_max_unshoot_lw, j_max_unshoot_lw, n, t0);
-	}
+	// converged = 0;
+	// n = 0; // iteration step counter = shooting cell counter
+	// while (converged != 1)
+	// {
+	// 	n++;
+	// 	converged = LWTerrainRadiationStep(threshold_itEps_LW, itMax_LW, i_max_unshoot_lw, j_max_unshoot_lw, n, t0);
+	// }
 }
 
 void TerrainRadiationHelbig::ComputeRadiationBalance()
