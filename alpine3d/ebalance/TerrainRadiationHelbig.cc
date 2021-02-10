@@ -73,7 +73,7 @@ void TerrainRadiationHelbig::getRadiation(const mio::Array2D<double> &direct, mi
 	std::cout << "[i] Computing Helbig radiation" << std::endl;
 	tdir = direct;
 	tdiff = diffuse;
-	tot_ilwr = tot_ilwr;
+	tot_ilwr = terrain_ilwr;
 	Compute();
 	terrain = total_terrain;
 	diffuse = tdiff;
