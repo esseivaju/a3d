@@ -77,8 +77,7 @@ public:
 					  const mio::Array2D<double> &total_ilwr, mio::Array2D<double> &sky_ilwr,
 					  mio::Array2D<double> &terrain_ilwr, double solarAzimuth, double solarElevation);
 	void setMeteo(const mio::Array2D<double> &albedo, const mio::Array2D<double> &alb_spatial_mean,
-				  const mio::Array2D<double> &ta, const mio::Array2D<double> &rh,
-				  const mio::Array2D<double> &ilwr);
+				  const mio::Array2D<double> &ta);
 
 private:
 	typedef std::array<double, 3> Vec3D;

@@ -78,8 +78,7 @@ void TerrainRadiationSimple::getRadiation(const mio::Array2D<double>& direct,
 
 void TerrainRadiationSimple::setMeteo(const mio::Array2D<double>& albedo,
                                       const mio::Array2D<double>& alb_spatial_mean_in,
-                                      const mio::Array2D<double>& /*ta*/, const mio::Array2D<double>& /*rh*/,
-                                      const mio::Array2D<double>& /*ilwr*/)
+                                      const mio::Array2D<double>& /*ta*/)
 {
 	albedo_grid = albedo;
   alb_spatial_mean=alb_spatial_mean_in;

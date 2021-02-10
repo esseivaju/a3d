@@ -46,8 +46,7 @@ class TerrainRadiationSimple : public TerrainRadiationAlgorithm {
 	                            mio::Array2D<double>& terrain_ilwr, double solarAzimuth, double solarElevation);
 		void getSkyViewFactor(mio::Array2D<double> &o_sky_vf);
 		void setMeteo(const mio::Array2D<double>& albedo, const mio::Array2D<double>& alb_spatial_mean,
-                  const mio::Array2D<double>& ta, const mio::Array2D<double>& rh,
-                  const mio::Array2D<double>& ilwr);
+                  const mio::Array2D<double>& ta);
 
 	private:
 		void initSkyViewFactor(const mio::DEMObject &dem);

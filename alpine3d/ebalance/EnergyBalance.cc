@@ -170,8 +170,9 @@ void EnergyBalance::setMeteo(const mio::Grid2DObject& in_ilwr,
 	terrain_ilwr=0;
 	if (terrain_radiation) {
 		// note: parallelization has to take place inside the TerrainRadiationAlgorithm implementations
-		terrain_radiation->setMeteo(albedo.grid2D, alb_spatial_mean.grid2D ,in_ta.grid2D, in_rh.grid2D, in_ilwr.grid2D);
-		terrain_radiation->getRadiation(direct, diffuse, reflected, direct_unshaded_horizontal, in_ilwr.grid2D,sky_ilwr,terrain_ilwr,
+		terrain_radiation->setMeteo(albedo.grid2D, alb_spatial_mean.grid2D ,in_ta.grid2D);
+		terrain_radiation->getRadiation(direct, diffuse, reflected, direct_unshaded_horizontal,
+                                    in_ilwr.grid2D, sky_ilwr, terrain_ilwr,
                                     solarAzimuth, solarElevation);
 	}
 
