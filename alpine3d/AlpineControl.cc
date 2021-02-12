@@ -41,7 +41,7 @@ AlpineControl::AlpineControl(SnowpackInterface *mysnowpack, SnowDriftA3D *mysnow
 	if (out_snow) {
 		cfg.getValue("SNOW_DAYS_BETWEEN", "Output", snow_days_between);
 	}
-	cfg.getValue("ADD_HS_TO_DEM", "input", correct_meteo_grids_HS);
+	cfg.getValue("ADD_HS_TO_DEM_FOR_METEO", "input", correct_meteo_grids_HS);
 }
 
 void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
