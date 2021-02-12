@@ -326,6 +326,11 @@ void MeteoObj::setGlacierMask(const Grid2DObject& glacierMask)
 	}
 }
 
+void MeteoObj::setDEM(const mio::DEMObject& in_dem)
+{
+	dem=in_dem;
+}
+
 //this should only be called when "--nocompute" was set. So we consider that
 //most of the other modules have NOT been called.
 void MeteoObj::checkMeteoForcing(const mio::Date& calcDate)

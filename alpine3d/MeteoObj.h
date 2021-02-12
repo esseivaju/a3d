@@ -104,6 +104,7 @@ class MeteoObj
 		void get(const mio::Date& in_date, std::vector<mio::MeteoData>& o_vecMeteo);
 		void checkMeteoForcing(const mio::Date& calcDate);
 		void setGlacierMask(const mio::Grid2DObject& glacierMask);
+		void setDEM(const mio::DEMObject& in_dem);
 		double getTiming() const;
 
 	private:
@@ -116,7 +117,7 @@ class MeteoObj
 		mio::Timer timer;
 		const mio::Config &config;
 		mio::IOManager io;
-		const mio::DEMObject &dem;
+		mio::DEMObject dem;
 		mio::Grid2DObject ta, rh, psum, psum_ph, vw, dw, p, ilwr;
 		mio::Grid2DObject sum_ta, sum_rh, sum_rh_psum, sum_psum, sum_psum_ph, sum_vw, sum_ilwr;
 		std::vector<mio::MeteoData> vecMeteo;

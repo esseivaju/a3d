@@ -33,14 +33,15 @@ using namespace std;
  * @param cfg User configuration keys
  * @param dem DEM defining the simulation
  */
-AlpineControl::AlpineControl(SnowpackInterface *mysnowpack, SnowDriftA3D *mysnowdrift, EnergyBalance *myeb, DataAssimilation *myda, Runoff *myrunoff, const Config& cfg, const DEMObject& dem)
-              : meteo(cfg, dem), snowpack(mysnowpack), snowdrift(mysnowdrift), eb(myeb), da(myda), runoff(myrunoff),
-                snow_days_between(0.), nocompute(false), out_snow(true)
+AlpineControl::AlpineControl(SnowpackInterface *mysnowpack, SnowDriftA3D *mysnowdrift, EnergyBalance *myeb, DataAssimilation *myda, Runoff *myrunoff, const Config& cfg, const DEMObject& in_dem)
+              : dem(in_dem), meteo(cfg, dem), snowpack(mysnowpack), snowdrift(mysnowdrift), eb(myeb), da(myda),
+                runoff(myrunoff), snow_days_between(0.), nocompute(false), out_snow(true), correct_meteo_grids_HS(false)
 {
 	cfg.getValue("SNOW_WRITE", "Output", out_snow);
 	if (out_snow) {
 		cfg.getValue("SNOW_DAYS_BETWEEN", "Output", snow_days_between);
 	}
+	cfg.getValue("ADD_HS_TO_DEM", "input", correct_meteo_grids_HS);
 }
 
 void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
@@ -61,7 +62,7 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 		cout << "\n";
 
 		if (nocompute) {
-			const Grid2DObject maskGlacier( snowpack->getGrid(SnGrids::GLACIER) );
+			const Grid2DObject maskGlacier{snowpack->getGrid(SnGrids::GLACIER)};
 			meteo.setGlacierMask(maskGlacier);
 		}
 	}
@@ -91,6 +92,9 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 		//get 1D and 2D meteo for the current time step
 		try {
 			meteo.get(calcDate, vecMeteo);
+			if(correct_meteo_grids_HS){
+				meteo.setDEM(dem+snowpack->getGrid(SnGrids::HS));
+			}
 			meteo.get(calcDate, ta, rh, psum, psum_ph, vw, dw, p, ilwr);
 		} catch (IOException&) {
 			//saving state files before bailing out
