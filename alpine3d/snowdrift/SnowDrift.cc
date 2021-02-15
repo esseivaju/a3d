@@ -68,6 +68,20 @@ SnowDriftA3D::SnowDriftA3D(const DEMObject& dem, const mio::Config& cfg)
 		}
 	}
 
+	//reading all parameters from ini file for the snowdrift module
+	WS0 = cfg.get("WS0", "SnowDrift");
+	dt_diff = cfg.get("dt_diff", "SnowDrift");
+	TKE = cfg.get("TKE", "SnowDrift");
+	SALTATION = cfg.get("SALTATION", "SnowDrift");
+	SUBLIMATION = cfg.get("SUBLIMATION", "SnowDrift");
+	FIELD3D_OUTPUT = cfg.get("FIELD3D_OUTPUT", "SnowDrift");
+	SUBLIMATION_OUTPUT = cfg.get("SUBLIMATION_OUTPUT", "SnowDrift");
+	T_FB = cfg.get("T_FB", "SnowDrift");
+	Q_FB = cfg.get("Q_FB", "SnowDrift");
+	C_FB = cfg.get("C_FB", "SnowDrift");
+	READK = cfg.get("READK", "SnowDrift");
+	WRITE_DRIFT_FLUXES = cfg.get("WRITE_DRIFT_FLUXES", "SnowDrift");
+
 	buildWindFieldsTable(wind_field_string);
 	Initialize();
 	InitializeFEData();
