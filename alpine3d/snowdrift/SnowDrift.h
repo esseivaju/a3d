@@ -18,19 +18,6 @@
 #ifndef SNOWDRIFTA3D_H
 #define SNOWDRIFTA3D_H
 
-#define WS0 0.5
-#define TKE 0
-#define SALTATION 1		// switch for saltation simulation
-#define SUBLIMATION 0 		// switch for drifting snow sublimation
-#define FIELD3D_OUTPUT 0	// output with all three-dimensional fields (only possible for sublimation)
-#define SUBLIMATION_OUTPUT 0	// debug output of drifting snow sublimation
-#define T_FB 1 //switch for feedback between sublimation and air temperature
-#define Q_FB 1 //switch for feedback between sublimation and humidity
-#define C_FB 1 //switch for feedback between sublimation and snow concentration
-#define READK 0  //define as 1 if you have K from ARPS wind fields INCLUDING turbulence
-#define WRITE_DRIFT_FLUXES 0 //set to 1 in order to write snow drift fluxes
-#define dt_diff 0.5   /* Small calculation step length for snow diffusion */
-
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -302,6 +289,9 @@ class SnowDriftA3D {
 		CElementArray dofMap;
 
 		CDoubleArray flux_x, flux_y, flux_z, flux_x_subl, flux_y_subl, flux_z_subl;
+
+		double WS0, dt_diff;
+		bool TKE, SALTATION, SUBLIMATION, FIELD3D_OUTPUT, SUBLIMATION_OUTPUT, T_FB, Q_FB, C_FB, READK, WRITE_DRIFT_FLUXES;
 
 		bool new_wind_status;
 
