@@ -30,7 +30,7 @@ using namespace mio;
 
 TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, const mio::DEMObject &dem_in,
                                                  const std::string &method)
-  : TerrainRadiationAlgorithm(method), dimx(dem_in.getNx()), dimy(dem_in.getNy()), startx(0), endx(dimx),
+  : TerrainRadiationAlgorithm(method), dimx(dem_in.getNx()), dimy(dem_in.getNy()), dimx_process(dimx), startx(0), endx(dimx),
     dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), pv_points(),
     albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
     sky_vf(2, mio::Array2D<double>(dimx, dimy, IOUtils::nodata)), sky_vf_mean(dimx, dimy, IOUtils::nodata)
@@ -54,6 +54,7 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 	{
 		endx = dimx - 1;
 	}
+	dimx_process = endx - startx;
 
 	std::cout << "[i] In TerrainRadiationComplex: Process " << MPIControl::instance().rank() << " working on slice (" << startx << ", " << endx << ")" << std::endl;
 
@@ -151,6 +152,14 @@ TerrainRadiationComplex::~TerrainRadiationComplex() {}
 //########################################################################################################################
 //                                             INITIALISATION FUNCTIONS
 //########################################################################################################################
+
+// Entire array needed for each process:
+// * BasicSet_Horizontal
+// * RList
+// Only local part of the array needed for each process:
+// * Sortlist
+// * BasicSetRotated
+// * ViewList
 
 /**
 * @brief Initializes set of Vectors that point to equal solid angels for horizontal hemisphere (BasicSet) [MT 2.1.1 Basic Set]
@@ -416,7 +425,6 @@ void TerrainRadiationComplex::initSortList()
 			}
 		}
 	}
-
 	// get rid of redundancy / Delete doubles
 	for (size_t ii = 1; ii < dimx - 1; ++ii)
 	{
@@ -613,12 +621,12 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 	mio::Array4D<double> TList_direct(dimx, dimy, 2, S, 0);									   // Anisotropic single-scattered radiance only from direct solar (W/m2/sr), (used in SolarPanel-module for shadow)
 
 	// Direct, Diffuse, and Iterative Terrain Fux densities (triangular grid)
-	mio::Array2D<double> direct_A(dimx, dimy, 0.), direct_B(dimx, dimy, 0.);					 // Direct Solar Flux density (W/m2) for triangles type A and B
-	mio::Array2D<double> skydiffuse_A(dimx, dimy, 0.), skydiffuse_B(dimx, dimy, 0.);			 // Sky-diffuse Flux density (W/m2) for triangles type A and B
+	mio::Array2D<double> direct_A(dimx_process, dimy, 0.), direct_B(dimx_process, dimy, 0.);					 // Direct Solar Flux density (W/m2) for triangles type A and B
+	mio::Array2D<double> skydiffuse_A(dimx_process, dimy, 0.), skydiffuse_B(dimx_process, dimy, 0.);			 // Sky-diffuse Flux density (W/m2) for triangles type A and B
 	mio::Array3D<double> terrain_flux_old(dimx, dimy, 2, 0), terrain_flux_new(dimx, dimy, 2, 0); // Total incident Flux density (W/m2) for all triangles of DEM (use new and old for iteration), [MT eq. 2.98]
 
-	// Direct, Diffuse, and Terrain Fux densities (averaged to square grid)
-	mio::Array2D<double> direct_temp(dimx, dimy, 0.), diffuse_temp(dimx, dimy, 0.), terrain_temp(dimx, dimy, 0.);
+	// Diffuse, and Terrain Fux densities (averaged to square grid)
+	mio::Array2D<double> diffuse_temp(dimx, dimy, 0.), terrain_temp(dimx, dimy, 0.);
 
 	Vec3D a_sun;
 	getVectorSun(solarAzimuth, solarElevation, a_sun);
@@ -629,6 +637,7 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 #pragma omp parallel for
 	for (size_t ii = startx; ii < endx; ++ii)
 	{
+		size_t ii_idx = ii - startx;
 		for (size_t jj = 1; jj < dimy - 1; ++jj)
 		{
 			//////////////////////////////////
@@ -646,16 +655,16 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 				proj_to_ray = 1. / VectorScalarProduct(a_sun, z_axis);
 				proj_to_triangle = VectorScalarProduct(a_sun, triangle);
 
-				direct_A(ii, jj) = direct_unshaded_horizontal(ii, jj) * proj_to_ray * proj_to_triangle;
+				direct_A(ii_idx, jj) = direct_unshaded_horizontal(ii, jj) * proj_to_ray * proj_to_triangle;
 
 				solidangle_sun = vectorToSPixel(a_sun, ii, jj, 1);
 				distance_closest_triangle = ViewList(ii, jj, 1, solidangle_sun)[3];
 
 				if (distance_closest_triangle != -999)
-					direct_A(ii, jj) = 0;
+					direct_A(ii_idx, jj) = 0;
 			}
 			else
-				direct_A(ii, jj) = 0;
+				direct_A(ii_idx, jj) = 0;
 
 			// Triangle-B, Geometric projection: horizontal radiation -> beam radiation -> triangle radiation
 			TriangleNormal(ii, jj, 0, triangle);
@@ -666,25 +675,23 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 				proj_to_ray = 1. / VectorScalarProduct(a_sun, z_axis);
 				proj_to_triangle = VectorScalarProduct(a_sun, triangle);
 
-				direct_B(ii, jj) = direct_unshaded_horizontal(ii, jj) * proj_to_ray * proj_to_triangle;
+				direct_B(ii_idx, jj) = direct_unshaded_horizontal(ii, jj) * proj_to_ray * proj_to_triangle;
 
 				solidangle_sun = vectorToSPixel(a_sun, ii, jj, 0);
 				distance_closest_triangle = ViewList(ii, jj, 0, solidangle_sun)[3];
 
 				if (distance_closest_triangle != -999)
-					direct_B(ii, jj) = 0;
+					direct_B(ii_idx, jj) = 0;
 			}
 			else
-				direct_B(ii, jj) = 0;
-
-			direct_temp(ii, jj) = (direct_A(ii, jj) + direct_B(ii, jj)) / 2; // Average both triangles to one DEM-Gridpoint-Value for further Alpine3D use
+				direct_B(ii_idx, jj) = 0;
 
 			///////////////////////////////////////
 			///// DIFFUSE [in MT eq. 2.96: F_diffuse,t]
 
-			skydiffuse_A(ii, jj) = diffuse(ii, jj) * getSkyViewFactor(ii, jj, 1);
-			skydiffuse_B(ii, jj) = diffuse(ii, jj) * getSkyViewFactor(ii, jj, 0);
-			diffuse_temp(ii, jj) = (skydiffuse_A(ii, jj) + skydiffuse_B(ii, jj)) / 2; // Average both triangles to one DEM-Gridpoint-Value for further Alpine3D use
+			skydiffuse_A(ii_idx, jj) = diffuse(ii, jj) * getSkyViewFactor(ii, jj, 1);
+			skydiffuse_B(ii_idx, jj) = diffuse(ii, jj) * getSkyViewFactor(ii, jj, 0);
+			diffuse_temp(ii, jj) = (skydiffuse_A(ii_idx, jj) + skydiffuse_B(ii_idx, jj)) / 2; // Average both triangles to one DEM-Gridpoint-Value for further Alpine3D use
 
 			/////////////////////////////////////////////
 			///// PREPARE LAND [MT 2.96: Put it together]
@@ -698,13 +705,13 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 
 				if (which_triangle == 1)
 				{
-					diffuse_t = skydiffuse_A(ii, jj);
-					direct_t = direct_A(ii, jj);
+					diffuse_t = skydiffuse_A(ii_idx, jj);
+					direct_t = direct_A(ii_idx, jj);
 				}
 				else
 				{
-					diffuse_t = skydiffuse_B(ii, jj);
-					direct_t = direct_B(ii, jj);
+					diffuse_t = skydiffuse_B(ii_idx, jj);
+					direct_t = direct_B(ii_idx, jj);
 				}
 				Vec3D triangle_normal;
 				TriangleNormal(ii, jj, which_triangle, triangle_normal);

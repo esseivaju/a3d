@@ -123,6 +123,7 @@ private:
 
 	// Variables
 	const size_t dimx, dimy;
+	size_t dimx_process;
 	size_t startx, endx;
 	mio::DEMObject dem;
 	const mio::Config &cfg;
