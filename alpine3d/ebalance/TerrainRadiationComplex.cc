@@ -29,11 +29,11 @@
 using namespace mio;
 
 TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, const mio::DEMObject &dem_in,
-                                                 const std::string &method)
-  : TerrainRadiationAlgorithm(method), dimx(dem_in.getNx()), dimy(dem_in.getNy()), dimx_process(dimx), startx(0), endx(dimx),
-    dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), pv_points(),
-    albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
-    sky_vf(2, mio::Array2D<double>(dimx, dimy, IOUtils::nodata)), sky_vf_mean(dimx, dimy, IOUtils::nodata)
+												 const std::string &method)
+	: TerrainRadiationAlgorithm(method), dimx(dem_in.getNx()), dimy(dem_in.getNy()), dimx_process(dimx), startx(0), endx(dimx),
+	  dem(dem_in), cfg(cfg_in), BRDFobject(cfg_in), pv_points(),
+	  albedo_grid(dem_in.getNx(), dem_in.getNy(), IOUtils::nodata),
+	  sky_vf(2, mio::Array2D<double>(dimx, dimy, IOUtils::nodata)), sky_vf_mean(dimx, dimy, IOUtils::nodata)
 {
 	// PRECISION PARAMETERS
 	// ####################
@@ -64,19 +64,19 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 		cfg.getValue("Complex_Anisotropy", "Ebalance", if_anisotropy);
 	else
 		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Anisotropy>> set in [Ebalance]. Use default "
-		<< "Complex_Anisotropy = " << if_anisotropy << " .\n";
+				  << "Complex_Anisotropy = " << if_anisotropy << " .\n";
 
 	if (cfg.keyExists("Complex_Multiple", "Ebalance"))
 		cfg.getValue("Complex_Multiple", "Ebalance", if_multiple);
 	else
 		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Multiple>> set in [Ebalance]. Use default "
-		<< "Complex_Multiple = " << if_multiple << " .\n";
+				  << "Complex_Multiple = " << if_multiple << " .\n";
 
 	if (cfg.keyExists("Complex_Write_Viewlist", "Ebalance"))
 		cfg.getValue("Complex_Write_Viewlist", "Ebalance", if_write_view_list);
 	else
 		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Write_Viewlist>> set in [Ebalance]. Use default "
-		<< "Complex_Write_Viewlist = " << if_write_view_list << " .\n";
+				  << "Complex_Write_Viewlist = " << if_write_view_list << " .\n";
 
 	if (cfg.keyExists("Complex_Read_Viewlist", "Ebalance"))
 	{
@@ -85,7 +85,7 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 	}
 	else
 		std::cout << "[i] In TerrainRadiationComplex: No flag <<Complex_Read_Viewlist>> set in [Ebalance]. Use default "
-		<< "Complex_Read_Viewlist = " << if_read_view_list << " .\n";
+				  << "Complex_Read_Viewlist = " << if_read_view_list << " .\n";
 
 	if (cfg.keyExists("PVPFILE", "EBalance"))
 	{
@@ -113,7 +113,7 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 			std::cout << "[i] Using " << pv_points.size() << " PVP\n";
 
 		SP = SolarPanel(cfg, dem, pv_points);
-		_hasSP=true;
+		_hasSP = true;
 	}
 
 	initBasicSetHorizontal();
@@ -145,6 +145,27 @@ TerrainRadiationComplex::TerrainRadiationComplex(const mio::Config &cfg_in, cons
 	if (_hasSP)
 		SP.initTerrain(M_epsilon, M_phi); // Link SolarPanel-object to ViewList
 
+	resizeArrays();
+}
+
+void TerrainRadiationComplex::resizeArrays()
+{
+	BasicSet_Horizontal = std::vector<TerrainRadiationComplex::Vec3D>();
+	Vec3D d = {0, 0, 0};
+	BasicSet_rotated = Array4D<TerrainRadiationComplex::Vec3D>(0, 0, 0, 0, d);
+
+	// Array3D<std::vector<double>> SortList_tmp = Array3D<std::vector<double>>(dimx_process, dimy, 2);
+	// for (size_t ii = startx; ii < endx; ++ii)
+	// {
+	// 	for (size_t jj = 1; jj < dimy - 1; ++jj)
+	// 	{
+	// 		for (size_t which_triangle = 0; which_triangle < 2; ++which_triangle)
+	// 		{
+	// 			SortList_tmp(ii - startx, jj, which_triangle) = SortList(ii, jj, which_triangle);
+	// 		}
+	// 	}
+	// }
+	// SortList = SortList_tmp;
 }
 
 TerrainRadiationComplex::~TerrainRadiationComplex() {}
@@ -601,11 +622,10 @@ bool TerrainRadiationComplex::ReadViewList()
 * @param[out] -
 *
 */
-void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Array2D<double> &diffuse,
-                                           mio::Array2D<double> &terrain, const mio::Array2D<double>
-                                           &direct_unshaded_horizontal, const mio::Array2D<double>& total_ilwr,
-                                           mio::Array2D<double>& sky_ilwr, mio::Array2D<double>& terrain_ilwr,
-                                           double solarAzimuth, double solarElevation)
+void TerrainRadiationComplex::getRadiation(mio::Array2D<double> &direct, mio::Array2D<double> &diffuse,
+										   mio::Array2D<double> &terrain, const mio::Array2D<double> &direct_unshaded_horizontal, const mio::Array2D<double> &total_ilwr,
+										   mio::Array2D<double> &sky_ilwr, mio::Array2D<double> &terrain_ilwr,
+										   double solarAzimuth, double solarElevation)
 {
 	MPIControl &mpicontrol = MPIControl::instance();
 
@@ -621,9 +641,9 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 	mio::Array4D<double> TList_direct(dimx, dimy, 2, S, 0);									   // Anisotropic single-scattered radiance only from direct solar (W/m2/sr), (used in SolarPanel-module for shadow)
 
 	// Direct, Diffuse, and Iterative Terrain Fux densities (triangular grid)
-	mio::Array2D<double> direct_A(dimx_process, dimy, 0.), direct_B(dimx_process, dimy, 0.);					 // Direct Solar Flux density (W/m2) for triangles type A and B
-	mio::Array2D<double> skydiffuse_A(dimx_process, dimy, 0.), skydiffuse_B(dimx_process, dimy, 0.);			 // Sky-diffuse Flux density (W/m2) for triangles type A and B
-	mio::Array3D<double> terrain_flux_old(dimx, dimy, 2, 0), terrain_flux_new(dimx, dimy, 2, 0); // Total incident Flux density (W/m2) for all triangles of DEM (use new and old for iteration), [MT eq. 2.98]
+	mio::Array2D<double> direct_A(dimx_process, dimy, 0.), direct_B(dimx_process, dimy, 0.);		 // Direct Solar Flux density (W/m2) for triangles type A and B
+	mio::Array2D<double> skydiffuse_A(dimx_process, dimy, 0.), skydiffuse_B(dimx_process, dimy, 0.); // Sky-diffuse Flux density (W/m2) for triangles type A and B
+	mio::Array3D<double> terrain_flux_old(dimx, dimy, 2, 0), terrain_flux_new(dimx, dimy, 2, 0);	 // Total incident Flux density (W/m2) for all triangles of DEM (use new and old for iteration), [MT eq. 2.98]
 
 	// Diffuse, and Terrain Fux densities (averaged to square grid)
 	mio::Array2D<double> diffuse_temp(dimx, dimy, 0.), terrain_temp(dimx, dimy, 0.);
@@ -763,6 +783,7 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 #pragma omp parallel for
 		for (size_t ii = startx; ii < endx; ++ii)
 		{
+			size_t ii_source = ii - startx;
 			for (size_t jj = 1; jj < dimy - 1; ++jj)
 			{
 				double albedo_temp = albedo_grid(ii, jj);
@@ -877,7 +898,8 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double>& direct, mio::Ar
 	}
 
 	// If SolarPanel-module is used, send all needed data
-	if (_hasSP){
+	if (_hasSP)
+	{
 		mpicontrol.allreduce_sum(TList_sky_iso);
 		mpicontrol.allreduce_sum(TList_direct);
 		mpicontrol.allreduce_sum(TList_ms_new);
@@ -1325,7 +1347,6 @@ double TerrainRadiationComplex::AngleBetween2Vectors(const Vec3D &vec1, const Ve
 	return angle;
 }
 
-
 void TerrainRadiationComplex::readSP()
 {
 	const std::string filename = cfg.get("PVPFILE", "EBalance");
@@ -1416,11 +1437,13 @@ void TerrainRadiationComplex::readSP()
 	}
 }
 
-void TerrainRadiationComplex::setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation){
+void TerrainRadiationComplex::setSP(const mio::Date timestamp, const double solarAzimuth, const double solarElevation)
+{
 	SP.setSP(timestamp, solarAzimuth, solarElevation);
 }
 
-void TerrainRadiationComplex::writeSP(const unsigned int max_steps){
+void TerrainRadiationComplex::writeSP(const unsigned int max_steps)
+{
 	SP.writeSP(max_steps);
 }
 //########################################################################################################################

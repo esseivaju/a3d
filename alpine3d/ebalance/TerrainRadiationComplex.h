@@ -117,6 +117,9 @@ private:
 	// PVP functions
 	void readSP();
 
+	//
+	void resizeArrays();
+
 
 	// Output functions
 	void PrintProgress(double percentage);
