@@ -154,18 +154,18 @@ void TerrainRadiationComplex::resizeArrays()
 	Vec3D d = {0, 0, 0};
 	BasicSet_rotated = Array4D<TerrainRadiationComplex::Vec3D>(0, 0, 0, 0, d);
 
-	// Array3D<std::vector<double>> SortList_tmp = Array3D<std::vector<double>>(dimx_process, dimy, 2);
-	// for (size_t ii = startx; ii < endx; ++ii)
-	// {
-	// 	for (size_t jj = 1; jj < dimy - 1; ++jj)
-	// 	{
-	// 		for (size_t which_triangle = 0; which_triangle < 2; ++which_triangle)
-	// 		{
-	// 			SortList_tmp(ii - startx, jj, which_triangle) = SortList(ii, jj, which_triangle);
-	// 		}
-	// 	}
-	// }
-	// SortList = SortList_tmp;
+	Array3D<std::vector<double>> SortList_tmp = Array3D<std::vector<double>>(dimx_process, dimy, 2);
+	for (size_t ii = startx; ii < endx; ++ii)
+	{
+		for (size_t jj = 1; jj < dimy - 1; ++jj)
+		{
+			for (size_t which_triangle = 0; which_triangle < 2; ++which_triangle)
+			{
+				SortList_tmp(ii - startx, jj, which_triangle).swap(SortList(ii, jj, which_triangle));
+			}
+		}
+	}
+	SortList = SortList_tmp;
 }
 
 TerrainRadiationComplex::~TerrainRadiationComplex() {}
@@ -783,7 +783,7 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double> &direct, mio::Ar
 #pragma omp parallel for
 		for (size_t ii = startx; ii < endx; ++ii)
 		{
-			size_t ii_source = ii - startx;
+			size_t ii_idx = ii - startx;
 			for (size_t jj = 1; jj < dimy - 1; ++jj)
 			{
 				double albedo_temp = albedo_grid(ii, jj);
@@ -811,17 +811,17 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double> &direct, mio::Ar
 						// These are the most expensive loops... core of [MT eq. 2.97]
 						if (albedo_temp < 0.5 || !if_anisotropy)
 						{
-							for (size_t kk = 0; kk < SortList(ii, jj, which_triangle).size(); ++kk)
+							for (size_t kk = 0; kk < SortList(ii_idx, jj, which_triangle).size(); ++kk)
 							{
-								solidangle_out = SortList(ii, jj, which_triangle)[kk];
+								solidangle_out = SortList(ii_idx, jj, which_triangle)[kk];
 								TList_ms_new(ii, jj, which_triangle, solidangle_out) += Rad_solidangle;
 							}
 						}
 						else
 						{
-							for (size_t kk = 0; kk < SortList(ii, jj, which_triangle).size(); ++kk)
+							for (size_t kk = 0; kk < SortList(ii_idx, jj, which_triangle).size(); ++kk)
 							{
-								solidangle_out = SortList(ii, jj, which_triangle)[kk];
+								solidangle_out = SortList(ii_idx, jj, which_triangle)[kk];
 								TList_ms_new(ii, jj, which_triangle, solidangle_out) += Rad_solidangle * RList(solidangle_in, solidangle_out);
 							}
 						}
