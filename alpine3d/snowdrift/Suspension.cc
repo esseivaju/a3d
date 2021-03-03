@@ -72,7 +72,7 @@ void SnowDriftA3D::Suspension()
 		iterativeSublimationCalculation(timeStep, maxTimeStep);
 
 		//steady state sublimation is found, if the concentration feedback is switched off, the new concentration field will have to be calculated here to be able to consider the effect of sublimation on concentration and deposition
-		if (C_FB== 0){
+		if (!C_FB){
 		    //recalculate concentration field
 		    initializeSystem( colA, rowA,sA,sB, rhs, f, Psi, c,c00, CON);
 		    //change source f to steady state sublimation
@@ -215,7 +215,7 @@ void SnowDriftA3D::iterativeSublimationCalculation(int timeStep, int maxTimeStep
 	nodes_Subl_ini.grid3D=0.;
 
 	//Save initial sublimation and adjust to start iteration with a value probably closer to steady-state sublimation
-	if (C_FB==1 || Q_FB==1 || T_FB==1){
+	if (C_FB || Q_FB || T_FB){
 	    nodes_Subl_ini.grid3D=nodes_Subl.grid3D*0.8;
 	}else{
 	    nodes_Subl_ini=nodes_Subl;
