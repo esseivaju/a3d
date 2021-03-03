@@ -166,6 +166,22 @@ void TerrainRadiationComplex::resizeArrays()
 		}
 	}
 	SortList = SortList_tmp;
+
+	Array4D<std::vector<double>> ViewList_tmp = Array4D<std::vector<double>>(dimx_process, dimy, 2, S, {0, 0, 0, 0, 0});
+	for (size_t ii = startx; ii < endx; ++ii)
+	{
+		for (size_t jj = 1; jj < dimy - 1; ++jj)
+		{
+			for (size_t which_triangle = 0; which_triangle < 2; ++which_triangle)
+			{
+				for (size_t kk = 0; kk < S; kk++)
+				{
+					ViewList_tmp(ii - startx, jj, which_triangle, kk).swap(ViewList(ii, jj, which_triangle, kk));
+				}
+			}
+		}
+	}
+	ViewList = ViewList_tmp;
 }
 
 TerrainRadiationComplex::~TerrainRadiationComplex() {}
@@ -678,7 +694,7 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double> &direct, mio::Ar
 				direct_A(ii_idx, jj) = direct_unshaded_horizontal(ii, jj) * proj_to_ray * proj_to_triangle;
 
 				solidangle_sun = vectorToSPixel(a_sun, ii, jj, 1);
-				distance_closest_triangle = ViewList(ii, jj, 1, solidangle_sun)[3];
+				distance_closest_triangle = ViewList(ii_idx, jj, 1, solidangle_sun)[3];
 
 				if (distance_closest_triangle != -999)
 					direct_A(ii_idx, jj) = 0;
@@ -698,7 +714,7 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double> &direct, mio::Ar
 				direct_B(ii_idx, jj) = direct_unshaded_horizontal(ii, jj) * proj_to_ray * proj_to_triangle;
 
 				solidangle_sun = vectorToSPixel(a_sun, ii, jj, 0);
-				distance_closest_triangle = ViewList(ii, jj, 0, solidangle_sun)[3];
+				distance_closest_triangle = ViewList(ii_idx, jj, 0, solidangle_sun)[3];
 
 				if (distance_closest_triangle != -999)
 					direct_B(ii_idx, jj) = 0;
@@ -793,14 +809,14 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double> &direct, mio::Ar
 					for (size_t solidangle_in = 0; solidangle_in < S; ++solidangle_in)
 					{
 						double Rad_solidangle;
-						double distance_closest_triangle = ViewList(ii, jj, which_triangle, solidangle_in)[3];
+						double distance_closest_triangle = ViewList(ii_idx, jj, which_triangle, solidangle_in)[3];
 						if (distance_closest_triangle == -999)
 							continue;
 
-						size_t ii_source = ViewList(ii, jj, which_triangle, solidangle_in)[0];
-						size_t jj_source = ViewList(ii, jj, which_triangle, solidangle_in)[1];
-						size_t which_triangle_source = ViewList(ii, jj, which_triangle, solidangle_in)[2];
-						size_t solidangle_source = ViewList(ii, jj, which_triangle, solidangle_in)[4];
+						size_t ii_source = ViewList(ii_idx, jj, which_triangle, solidangle_in)[0];
+						size_t jj_source = ViewList(ii_idx, jj, which_triangle, solidangle_in)[1];
+						size_t which_triangle_source = ViewList(ii_idx, jj, which_triangle, solidangle_in)[2];
+						size_t solidangle_source = ViewList(ii_idx, jj, which_triangle, solidangle_in)[4];
 
 						Rad_solidangle = TList_ms_old(ii_source, jj_source, which_triangle_source, solidangle_source);
 						terrain_flux_new(ii, jj, which_triangle) += Rad_solidangle / S * Cst::PI;
@@ -851,6 +867,7 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double> &direct, mio::Ar
 #pragma omp parallel for
 		for (size_t ii = startx; ii < endx; ++ii)
 		{
+			size_t ii_idx = ii - startx;
 			for (size_t jj = 1; jj < dimy - 1; ++jj)
 			{
 				double albedo_temp = albedo_grid(ii, jj);
@@ -860,14 +877,14 @@ void TerrainRadiationComplex::getRadiation(mio::Array2D<double> &direct, mio::Ar
 					for (size_t solidangle_in = 0; solidangle_in < S; ++solidangle_in)
 					{
 						double Rad_solidangle;
-						double distance_closest_triangle = ViewList(ii, jj, which_triangle, solidangle_in)[3];
+						double distance_closest_triangle = ViewList(ii_idx, jj, which_triangle, solidangle_in)[3];
 						if (distance_closest_triangle == -999)
 							continue;
 
-						size_t ii_source = ViewList(ii, jj, which_triangle, solidangle_in)[0];
-						size_t jj_source = ViewList(ii, jj, which_triangle, solidangle_in)[1];
-						size_t which_triangle_source = ViewList(ii, jj, which_triangle, solidangle_in)[2];
-						size_t solidangle_source = ViewList(ii, jj, which_triangle, solidangle_in)[4];
+						size_t ii_source = ViewList(ii_idx, jj, which_triangle, solidangle_in)[0];
+						size_t jj_source = ViewList(ii_idx, jj, which_triangle, solidangle_in)[1];
+						size_t which_triangle_source = ViewList(ii_idx, jj, which_triangle, solidangle_in)[2];
+						size_t solidangle_source = ViewList(ii_idx, jj, which_triangle, solidangle_in)[4];
 
 						Rad_solidangle = TList_ms_old(ii_source, jj_source, which_triangle_source, solidangle_source);
 						terrain_flux_new(ii, jj, which_triangle) += Rad_solidangle / S * Cst::PI;
@@ -1121,7 +1138,7 @@ void TerrainRadiationComplex::initSkyViewFactor()
 {
 	for (size_t which_triangle = 0; which_triangle < 2; ++which_triangle) // Triangles: A=1, B=0  [MT Figure 2.2]
 	{
-		for (size_t ii = 1; ii < dimx - 1; ++ii)
+		for (size_t ii = startx; ii < endx; ++ii)
 		{
 			for (size_t jj = 1; jj < dimy - 1; ++jj)
 			{
