@@ -40,6 +40,7 @@ class SnGrids {
                                           ISWR_DIR, ///< Incoming short wave, direct
                                           ILWR, ///< Incoming long wave radiation
                                           HS, ///< Height of snow
+                                          ELEV, ///< Surface elevation
                                           PSUM, ///< Water equivalent of precipitations, either solid or liquid
                                           PSUM_PH, ///<  Precipitation phase, between 0 (fully solid) and 1 (fully liquid)
                                           PSUM_TECH, ///< Water equivalent precipitation from artificial snow production

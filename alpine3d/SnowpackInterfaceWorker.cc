@@ -326,6 +326,14 @@ void SnowpackInterfaceWorker::fillGrids(const size_t& ii, const size_t& jj, cons
 				value = (useEBalance && useCanopy)? meteoPixel.iswr : IOUtils::nodata; break;
 			case SnGrids::HS:
 				value = (snowPixel.cH - snowPixel.Ground) /  snowPixel.cos_sl; break; //slope2horiz
+			case SnGrids::ELEV:
+				if (snowPixel.Seaice != NULL) {
+					value = (snowPixel.Ndata[snowPixel.getNumberOfNodes()-1].z - snowPixel.Seaice->ForcedSeaLevel);
+				} else {
+					// ELEV equal to HS
+					value = (snowPixel.cH - snowPixel.Ground) /  snowPixel.cos_sl;
+				}
+				break;
 			case SnGrids::TSS:
 				if (!useCanopy || snowPixel.Cdata.zdispl < 0.) {
 					value = snowPixel.Ndata.back().T;

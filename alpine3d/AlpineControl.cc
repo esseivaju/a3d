@@ -93,7 +93,7 @@ void AlpineControl::Run(Date i_startdate, const unsigned int max_steps)
 		try {
 			meteo.get(calcDate, vecMeteo);
 			if(correct_meteo_grids_HS){
-				meteo.setDEM(dem+snowpack->getGrid(SnGrids::HS));
+				meteo.setDEM(dem+snowpack->getGrid(SnGrids::ELEV));
 			}
 			meteo.get(calcDate, ta, rh, psum, psum_ph, vw, dw, p, ilwr);
 		} catch (IOException&) {
