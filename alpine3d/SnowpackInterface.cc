@@ -97,7 +97,7 @@ SnowpackInterface::SnowpackInterface(const mio::Config& io_cfg, const size_t& nb
                                      const std::string& grids_requirements,
                                      const bool is_restart_in)
                 : run_info(), io(io_cfg), pts(prepare_pts(vec_pts)),dem(dem_in),
-                  is_restart(is_restart_in), useCanopy(false), enable_lateral_flow(false), a3d_view(false),
+                  is_restart(is_restart_in), useCanopy(false), enable_lateral_flow(false), enforce_hydrostatic_balance(false), a3d_view(false),
                   do_io_locally(true), station_name(),glacier_katabatic_flow(false), snow_production(false), snow_grooming(false),
                   Tsoil_idx(), grids_start(0), grids_days_between(0), ts_start(0.), ts_days_between(0.), prof_start(0.), prof_days_between(0.),
                   grids_write(true), ts_write(false), prof_write(false), snow_write(false), snow_poi_written(false), glacier_from_grid(false),
@@ -174,6 +174,9 @@ SnowpackInterface::SnowpackInterface(const mio::Config& io_cfg, const size_t& nb
 
 	//check if lateral flow is enabled
 	sn_cfg.getValue("LATERAL_FLOW", "Alpine3D", enable_lateral_flow, IOUtils::nothrow);
+
+	//check if lateral flow is enabled
+	sn_cfg.getValue("ENFORCE_HYDROSTATIC_BALANCE", "Alpine3D", enforce_hydrostatic_balance, IOUtils::nothrow);
 
 	//check if A3D view should be used for grids
 	sn_cfg.getValue("A3D_VIEW", "Output", a3d_view, IOUtils::nothrow);
@@ -314,6 +317,7 @@ SnowpackInterface& SnowpackInterface::operator=(const SnowpackInterface& source)
 		glaciers = source.glaciers;
 		techSnow = source.techSnow;
 		enable_lateral_flow = source.enable_lateral_flow;
+		enforce_hydrostatic_balance = source.enforce_hydrostatic_balance;
 		a3d_view = source.a3d_view;
 
 		sn_cfg = source.sn_cfg;
@@ -344,10 +348,11 @@ SnowpackInterface& SnowpackInterface::operator=(const SnowpackInterface& source)
 
 std::string SnowpackInterface::getGridsRequirements() const
 {
+	std::string ret = "ELEV";
 	if (glacier_katabatic_flow) {
-		return "GLACIER TSS HS";
+		ret += " GLACIER TSS HS";
 	}
-	return "";
+	return ret;
 }
 
 mio::Config SnowpackInterface::readAndTweakConfig(const mio::Config& io_cfg, const bool have_pts)
@@ -827,6 +832,13 @@ void SnowpackInterface::calcNextStep()
 	// timing
 	timer.restart();
 
+	const std::string variant = sn_cfg.get("VARIANT", "SnowpackAdvanced", "");
+	double sealevel = IOUtils::nodata;
+	double totSeaIceMass = IOUtils::nodata;
+	if (variant == "SEAICE") {
+		sealevel = calcHydrostaticBalance(0., totSeaIceMass, true);
+	}
+
 	size_t errCount = 0;
 	const mio::Grid2DObject tmp_psum(psum, mpi_offset, 0, mpi_nx, dimy);
 	const mio::Grid2DObject tmp_psum_ph(psum_ph,  mpi_offset, 0, mpi_nx, dimy);
@@ -857,6 +869,10 @@ void SnowpackInterface::calcNextStep()
 	//Lateral flow
 	if (enable_lateral_flow) {
 		calcLateralFlow();
+	}
+
+	if (variant == "SEAICE") {
+		sealevel = calcHydrostaticBalance(sealevel, totSeaIceMass, false);
 	}
 
 	//Retrieve special points data and write files
@@ -1154,6 +1170,7 @@ SN_SNOWSOIL_DATA SnowpackInterface::getIcePixel(const double glacier_height, con
 
 	if (MPIControl::instance().master() || do_io_locally) {
 		const bool useSoil = sn_cfg.get("SNP_SOIL", "Snowpack");
+		const std::string variant = sn_cfg.get("VARIANT", "SnowpackAdvanced", "");
 		const std::string coordsys = sn_cfg.get("COORDSYS", "Input");
 		const std::string coordparam = sn_cfg.get("COORDPARAM", "Input", "");
 		Coords llcorner_out( dem.llcorner );
@@ -1245,6 +1262,11 @@ SN_SNOWSOIL_DATA SnowpackInterface::getIcePixel(const double glacier_height, con
 					snowPixel.meta.stationID = station_idx.str();
 					if (is_special_point) { //create SMET files for special points
 						write_SMET_header(snowPixel.meta, landuse(ix, iy));
+					}
+
+					if (variant == "SEAICE") {
+						snowPixel.Seaice->ForcedSeaLevel = snowPixel.Cdata.height;
+						snowPixel.Cdata.height = 0.;
 					}
 				}
 			}
@@ -1406,4 +1428,98 @@ void SnowpackInterface::calcLateralFlow()
 		workers[ii]->setLateralFlow(snow_pixel_out);
 	}
 	return;
+}
+
+double SnowpackInterface::calcHydrostaticBalance(const double& sealevel_in, double& tot_mass_in, const bool& begin)
+{
+	std::vector<SnowStation*> snow_pixel;
+	// Retrieve snow stations
+	for (size_t ii = 0; ii < workers.size(); ii++) {
+		workers[ii]->getLateralFlow(snow_pixel);
+	}
+
+	// Calculate new hydrostatic balance
+	size_t ix=0;											// The source cell x coordinate
+	size_t errCount = 0;
+	double tot_mass = 0.;
+	double tot_OceanSalinity = 0.;
+	double tot_SeaLevel = 0.;
+	size_t tot_mass_n = 0;
+	size_t tot_skipped = 0;
+	//#pragma omp parallel for schedule(dynamic, 1) reduction(+: errCount)
+	for (size_t ii = 0; ii < workers.size(); ii++) {						// Cycle over all workers
+		try {
+			for (size_t jj = 0; jj < worker_deltax[ii]; jj++) {				// Cycle over x range per worker
+				for (size_t iy = 0; iy < dimy; iy++) {					// Cycle over y
+					ix = worker_startx[ii] + jj;
+					const size_t index_SnowStation_src = ix * dimy + iy;		// Index of source cell of water
+					if (snow_pixel[index_SnowStation_src] != NULL) {		// Make sure it is not a NULL pointer (in case of skipped cells)
+						tot_mass += snow_pixel[index_SnowStation_src]->swe;
+						tot_OceanSalinity += snow_pixel[index_SnowStation_src]->Seaice->OceanSalinity;
+						tot_SeaLevel += snow_pixel[index_SnowStation_src]->Seaice->ForcedSeaLevel;
+						tot_mass_n++;
+					} else {
+						tot_skipped++;
+					}
+				}
+			}
+		} catch(const std::exception& e) {
+			++errCount;
+			cout << e.what() << std::endl;
+		}
+	}
+
+	if (errCount>0) {
+		//something wrong took place, quitting. At least we tried writing the special points out
+		std::abort(); //force core dump
+	}
+
+	if (tot_mass_n == 0) {
+		return IOUtils::nodata;
+	}
+
+	tot_mass /= tot_mass_n;
+	tot_OceanSalinity /= tot_mass_n;
+	tot_SeaLevel /= tot_mass_n;
+	const double tmp_sealevel = (tot_mass) / (Constants::density_water + SeaIce::betaS * tot_OceanSalinity);		// Enforcing hydrostatic balance
+	const double delta_sl1 = (sealevel_in - tot_SeaLevel);
+	const double delta_sl2 = (tot_mass - tot_mass_in) / (Constants::density_water + SeaIce::betaS * tot_OceanSalinity);	// Delta sea level, keeping offset of hydrostatic balance
+	if (begin) {
+		tot_mass_in = tot_mass;
+		return ((enforce_hydrostatic_balance) ? (tmp_sealevel) : (tot_SeaLevel));
+	}
+	printf("[i] HydroStatic Balance from %d pixels (%d skipped): sealevel=%f --> sealevel=%f --> sealevel=%f\n", int(tot_mass_n), int(tot_skipped), sealevel_in, tot_SeaLevel, tmp_sealevel);
+
+
+	// Apply hydrostatic adjustment
+	#pragma omp parallel for schedule(dynamic, 1) reduction(+: errCount)
+	for (size_t ii = 0; ii < workers.size(); ii++) {						// Cycle over all workers
+		try {
+			for (size_t jj = 0; jj < worker_deltax[ii]; jj++) {				// Cycle over x range per worker
+				for (size_t iy = 0; iy < dimy; iy++) {					// Cycle over y
+					ix = worker_startx[ii] + jj;
+					const size_t index_SnowStation_src = ix * dimy + iy;		// Index of source cell of water
+					if (snow_pixel[index_SnowStation_src] != NULL) {		// Make sure it is not a NULL pointer (in case of skipped cells)
+						if (snow_pixel[index_SnowStation_src]->Seaice->ForcedSeaLevel != IOUtils::nodata) {
+							if (enforce_hydrostatic_balance) {
+								snow_pixel[index_SnowStation_src]->Seaice->ForcedSeaLevel += (tmp_sealevel - tot_SeaLevel);
+							} else {
+								snow_pixel[index_SnowStation_src]->Seaice->ForcedSeaLevel += delta_sl1 + delta_sl2;
+							}
+						}
+					}
+				}
+			}
+		} catch(const std::exception& e) {
+			++errCount;
+			cout << e.what() << std::endl;
+		}
+	}
+
+	if (errCount>0) {
+		//something wrong took place, quitting. At least we tried writing the special points out
+		std::abort(); //force core dump
+	}
+
+	return tmp_sealevel;
 }
