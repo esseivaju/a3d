@@ -1265,6 +1265,7 @@ SN_SNOWSOIL_DATA SnowpackInterface::getIcePixel(const double glacier_height, con
 					}
 
 					if (variant == "SEAICE") {
+						// We read in the position of the sea level inside the model domain (bottom of sea ice to sea level) via de Canopy height variable
 						snowPixel.Seaice->ForcedSeaLevel = snowPixel.Cdata.height;
 						snowPixel.Cdata.height = 0.;
 					}
