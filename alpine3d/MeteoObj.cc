@@ -39,6 +39,7 @@ bool SnGrids::initStaticData()
 	paramname.push_back("ISWR_DIR");
 	paramname.push_back("ILWR");
 	paramname.push_back("HS");
+	paramname.push_back("ELEV");
 	paramname.push_back("PSUM");
 	paramname.push_back("PSUM_PH");
 	paramname.push_back("PSUM_TECH");
