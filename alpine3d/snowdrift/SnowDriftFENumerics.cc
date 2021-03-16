@@ -490,6 +490,7 @@ void SnowDriftA3D::matmult(CDoubleArray& res, const CDoubleArray& x_loc, double*
     res[i]=0;
 	}
 
+#pragma omp parallel for
   for (int i = 1; i <= n; i++)	{
       res[i]=sm[i]*x_loc[i];
       for (int k = ijm[i]; k <= (ijm[i+1]-1); k++) {
@@ -517,6 +518,7 @@ void SnowDriftA3D::matmult(CDoubleArray& y_loc,
 {
 	const size_t dim = rowPtr.getNx() - 1;
 
+#pragma omp parallel for
 	for (size_t i = 0; i < dim; i++) {
 		y_loc[i] = 0;
 		for (int j = rowPtr[i]; j < rowPtr[i+1] ; j++) {
