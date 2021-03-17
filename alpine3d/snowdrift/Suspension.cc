@@ -139,11 +139,11 @@ void SnowDriftA3D::SolveEquation(int timeStep, int maxTimeStep,const param_type 
 		}
 
 		if (param==HUM){
-			matmult(rhs,q,sB,colA,rowA);
+			matmultMergeCsrmv(rhs,q,sB,colA,rowA);
 		} else if (param==CON){
-			matmult(rhs,c,sB,colA,rowA);
+			matmultMergeCsrmv(rhs,c,sB,colA,rowA);
 		} else if (param==TEM){
-			matmult(rhs,T,sB,colA,rowA);
+			matmultMergeCsrmv(rhs,T,sB,colA,rowA);
 		}
 
 		//construct the rhs of the system to solve: Ac=rhs

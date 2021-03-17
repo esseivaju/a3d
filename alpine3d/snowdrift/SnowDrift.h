@@ -22,12 +22,14 @@
 #include <math.h>
 #include <stdlib.h>
 #include <iostream>
+#include <tuple>
 #include <meteoio/MeteoIO.h>
 #include <meteoio/plugins/ARPSIO.h>
 
 typedef mio::Array2D<int> CElementArray;
 typedef mio::Array1D<double> CDoubleArray;
 typedef mio::Array1D<int> CIntArray;
+typedef std::tuple<int, int> CoordinateT;
 
 #include <alpine3d/SnowpackInterface.h>
 #include <alpine3d/ebalance/EnergyBalance.h>
@@ -130,10 +132,11 @@ class SnowDriftA3D {
 		//functions required for solving the linear system
 		virtual void matmult(CDoubleArray& res, const CDoubleArray& x, double* sm, int* ijm);
 		virtual void matmult(CDoubleArray& res, const CDoubleArray& x, const CDoubleArray& sA, const CIntArray& colA, CIntArray& rowA);
+		virtual void matmultMergeCsrmv(CDoubleArray& res, const CDoubleArray& x, const CDoubleArray& sA, const CIntArray& colA, CIntArray& rowA);
 		virtual void transmult(CDoubleArray& res, const CDoubleArray& x,double* sm, int* ijm);
 		virtual void SolveEquation(int timeStep, int maxTimeStep, const param_type param );
 		virtual void bicgStab(CDoubleArray& result, CDoubleArray& rhs, const CDoubleArray& sA, const CIntArray& colA, CIntArray& rowA, const int nmax, const double tol, double& testres);
-
+		virtual CoordinateT mergePathSearch(int diagonal, CIntArray& a_iter_start, int b_iter_start, int a_len, int b_len);
 
 		//---------------------------------------------------------------------
 		// finite Element functions, basically wrappers for the bare

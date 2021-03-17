@@ -474,6 +474,70 @@ void SnowDriftA3D::phi(double *PHI,double *P)
   PHI[7] = 1/8.*(1-p_loc)*(1-q_loc)*(1+r);
 }
 
+CoordinateT SnowDriftA3D::mergePathSearch(int diagonal, CIntArray& a_iter_start, int b_iter_start, int a_len, int b_len)
+{
+  int x_min = std::max(diagonal - b_len, 0);
+  int x_max = std::min(diagonal, a_len);
+
+  while (x_min < x_max) {
+    int pivot = (x_min + x_max) >> 1;
+    if(a_iter_start[pivot + 1] <= b_iter_start + (diagonal - pivot -1) ){
+      x_min = pivot + 1;
+    } else {
+      x_max = pivot;
+    }
+  }
+  return std::make_tuple(
+    std::min(x_min, a_len),
+    (diagonal - x_min)
+  );
+}
+
+// Implementation based on the publication by Merril, Duane et al. Merge-based Parallel Sparse Matrix-Vector Multiplication
+// see https://ieeexplore.ieee.org/abstract/document/7877136
+void SnowDriftA3D::matmultMergeCsrmv(CDoubleArray& y_loc,
+			const CDoubleArray& x_loc,
+			const CDoubleArray& sA_loc,
+			const CIntArray& colInd,
+			CIntArray& rowPtr )
+{
+  CIntArray& row_end_offset = rowPtr;
+
+  int num_merge_items = rowPtr.size() + sA_loc.size();
+  int num_threads = MPIControl::instance().max_threads();
+  int items_per_thread = (num_merge_items + num_threads - 1) / num_threads;
+  int row_carry_out[num_threads];
+  double value_carry_out[num_threads];
+#pragma omp parallel for schedule(static) num_threads(num_threads)
+  for(int tid = 0; tid < num_threads; tid++) {
+    int diagonal = std::min(items_per_thread * tid, num_merge_items);
+    int diagonal_end = std::min(diagonal + items_per_thread, num_merge_items);
+    int thread_coord_x, thread_coord_y;
+    int thread_coord_end_x, thread_coord_end_y;
+    std::tie(thread_coord_x, thread_coord_y) = mergePathSearch(diagonal, row_end_offset, 0, rowPtr.size(), sA_loc.size());
+    std::tie(thread_coord_end_x, thread_coord_end_y) = mergePathSearch(diagonal_end, row_end_offset, 0, rowPtr.size(), sA_loc.size());
+
+    double running_total = 0.0;
+    for(;thread_coord_x < thread_coord_end_x; thread_coord_x++) {
+      for(;thread_coord_y < row_end_offset[thread_coord_x+1]; thread_coord_y++){
+        running_total += sA_loc[thread_coord_y] * x_loc[colInd[thread_coord_y]];
+      }
+      y_loc[thread_coord_x] = running_total;
+      running_total = 0.0;
+    }
+
+    for(;thread_coord_y < thread_coord_end_y; thread_coord_y++)
+      running_total += sA_loc[thread_coord_y] * x_loc[colInd[thread_coord_y]];
+
+    row_carry_out[tid] = thread_coord_end_x;
+    value_carry_out[tid] = running_total;
+  }
+  
+  for(int tid = 0; tid < num_threads - 1; ++tid)
+    if (row_carry_out[tid] < rowPtr.size())
+      y_loc[row_carry_out[tid]] += value_carry_out[tid];
+}
+
 /**
  * @brief matmult
  * computes a matrix vector product for a sparse matrix
@@ -632,7 +696,7 @@ void SnowDriftA3D::bicgStab(CDoubleArray& result,
       p_loc[i] = 0;
   }
 
-  matmult(res1,result,sA_loc,colA_loc,rowA_loc);  // multiply Bx and store it into the dummy res1
+  matmultMergeCsrmv(res1,result,sA_loc,colA_loc,rowA_loc);  // multiply Bx and store it into the dummy res1
 
   norm1 = 0;
   norm2 = 0;
@@ -678,7 +742,7 @@ void SnowDriftA3D::bicgStab(CDoubleArray& result,
 	  		phat[i] = p_loc[i]/precond[i];
 			}
 
-      matmult(v,phat,sA_loc,colA_loc,rowA_loc);		// put B*p into v
+      matmultMergeCsrmv(v,phat,sA_loc,colA_loc,rowA_loc);		// put B*p into v
 
       res4 = 0;
       for ( size_t i = 0; i < n ; i++ )	{
@@ -700,7 +764,7 @@ void SnowDriftA3D::bicgStab(CDoubleArray& result,
 	  		auxhat[i] = aux1[i]/precond[i];
       }
 
-      matmult(aux2,auxhat,sA_loc,colA_loc,rowA_loc);
+      matmultMergeCsrmv(aux2,auxhat,sA_loc,colA_loc,rowA_loc);
 
       res4 = 0;
       res5 = 0;
@@ -716,7 +780,7 @@ void SnowDriftA3D::bicgStab(CDoubleArray& result,
 	 			r[i] = aux1[i] - omega * aux2[i];
       }
 
-      matmult(res1,result,sA_loc,colA_loc,rowA_loc);
+      matmultMergeCsrmv(res1,result,sA_loc,colA_loc,rowA_loc);
 
       norm1=0;
       norm2=0;
