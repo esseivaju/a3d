@@ -1198,7 +1198,11 @@ SN_SNOWSOIL_DATA SnowpackInterface::getIcePixel(const double glacier_height, con
 						snow_stations_tmp.push_back( NULL );
 						continue;
 					}
+<<<<<<< HEAD
 					snow_stations_tmp.push_back( new SnowStation(useCanopy, useSoil, true, (variant=="SEAICE") ));
+=======
+					snow_stations_tmp.push_back( new SnowStation(useCanopy, useSoil, true, (variant=="SEAICE")) );
+>>>>>>> Allow compilation with snowpack dev commit 1894
 
 					SnowStation& snowPixel = *(snow_stations_tmp.back());
 					const bool is_special_point = SnowpackInterfaceWorker::is_special(pts, ix, iy);
