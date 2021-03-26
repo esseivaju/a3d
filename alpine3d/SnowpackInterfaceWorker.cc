@@ -515,9 +515,10 @@ void SnowpackInterfaceWorker::runModel(const mio::Date &date,
 				meteo.setStability(Meteo::MO_HOLTSLAG);
 			}
 		}
-
+		bool adjust_height_of_wind_value;
+		sn_cfg.getValue("ADJUST_HEIGHT_OF_WIND_VALUE", "SnowpackAdvanced", adjust_height_of_wind_value);
 		//compute ustar, psi_s, z0
-		meteo.compMeteo(meteoPixel, snowPixel, true);
+		meteo.compMeteo(meteoPixel, snowPixel, true, adjust_height_of_wind_value);
 		SurfaceFluxes surfaceFlux;
 		// run snowpack model itself
 		double dIntEnergy = 0.; //accumulate the dIntEnergy over the snowsteps
