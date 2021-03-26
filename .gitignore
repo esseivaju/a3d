@@ -16,3 +16,4 @@ cmake_uninstall.cmake
 install_manifest.txt
 lib/*
 doc/examples/totalp*
+doc/examples/2007*
