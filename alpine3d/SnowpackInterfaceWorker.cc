@@ -220,12 +220,12 @@ void SnowpackInterfaceWorker::initGrids(std::vector<std::string>& params,
 		IOUtils::toUpper(params[ii]); //make sure all parameters are upper case
 
 		const size_t param_idx = SnGrids::getParameterIndex( params[ii] );
-    const auto position = std::find(grids_not_computed_in_worker.begin(),
-                         grids_not_computed_in_worker.end(),
-                         params[ii]);
-    if(position<grids_not_computed_in_worker.end()) {
-      continue;
-    }
+		const auto position = std::find(grids_not_computed_in_worker.begin(),
+						 grids_not_computed_in_worker.end(),
+						 params[ii]);
+		if(position<grids_not_computed_in_worker.end()) {
+			continue;
+		}
 		if (param_idx==IOUtils::npos)
 			throw UnknownValueException("Unknow meteo grid '"+params[ii]+"' selected for gridded output", AT);
 
@@ -392,7 +392,7 @@ void SnowpackInterfaceWorker::fillGrids(const size_t& ii, const size_t& jj, cons
 				}
 				else
 				{
-          std::cout << it->first << std::endl;
+					std::cout << it->first << std::endl;
 					throw InvalidArgumentException("Invalid parameter requested", AT);
 				}
 		}
